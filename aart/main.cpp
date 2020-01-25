@@ -149,7 +149,7 @@ template <typename T, typename F>
 }
 
 template <typename T, typename F>
-[[nodiscard]] auto similar2(const T& goal, const cv::Mat& palette, F distance) noexcept -> std::tuple<T, T, int, int>
+[[nodiscard]] auto similar2(const T& goal, const cv::Mat& palette, F distance) noexcept -> std::tuple<cv::MatConstIterator_<T>, cv::MatConstIterator_<T>>
 {
 	auto dmin1 = distance(goal, *palette.begin<T>());
 	auto dmin2 = dmin1;
@@ -159,7 +159,7 @@ template <typename T, typename F>
 	
 	for (auto c = palette.begin<T>() + 1; c != palette.end<T>(); ++c)
 	{
-		auto delta = distance(goal, *c);
+		const auto delta = distance(goal, *c);
 
 		if (delta < dmin1) {
 			dmin2 = dmin1;
@@ -175,46 +175,116 @@ template <typename T, typename F>
 		}
 	}
 
-	return std::make_tuple(*c1, *c2, c1 - palette.begin<T>(), c2 - palette.begin<T>());
+	return std::make_tuple(c1, c2);
 }
+
+class Charmap
+{
+public:
+	Charmap(cv::Mat charmap, cv::Mat colormap, std::string chars) :
+		m_charmap{ std::move(charmap) },
+		m_colormap{ bgr2lab(std::move(colormap)) },
+		m_chars{ std::move(chars) }
+	{}
+
+	[[nodiscard]] inline auto cellW() const noexcept
+	{
+		return m_cellw;
+	}
+
+	[[nodiscard]] inline auto cellH() const noexcept
+	{
+		return m_cellh;
+	}
+
+	[[nodiscard]] inline auto size() const noexcept
+	{
+		return m_ncells;
+	}
+
+	[[nodiscard]] inline auto type() const noexcept
+	{
+		return m_charmap.type();
+	}
+
+	template <typename T, typename F>
+	[[nodiscard]] auto getCell(const T& color, F distance) const noexcept -> cv::Mat
+	{
+		// Get best colors and calculate its palette index
+		const auto [bg_color, fg_color] = similar2(color, m_colormap, distance);
+		const auto [bg_pos, fg_pos] = calc_pos(bg_color, fg_color);
+
+		const auto bg_delta = distance(color, *bg_color);
+		const auto fg_delta = distance(color, *fg_color);
+
+		// Calculate character index
+		const int char_pos = fg_delta == 0 ?
+			m_nchars - 1 :
+			bg_delta / fg_delta * (m_nchars - 1);
+
+		// Calculate celll position in charmap
+		const auto cell_x = char_pos * m_cellw;
+		const auto cell_y = (bg_pos * m_ncolors + fg_pos) * m_cellh;
+
+		return m_charmap(cv::Rect{ cell_x, cell_y, m_cellw, m_cellh });
+	}
+
+private:
+	cv::Mat m_charmap;
+	cv::Mat m_colormap;
+	const std::string m_chars;
+
+	const int m_nchars  = m_chars.length();
+	const int m_ncolors = m_colormap.size().width;
+
+	const int m_cellw = m_charmap.size().width / m_nchars;
+	const int m_cellh = m_charmap.size().height / (m_ncolors * m_ncolors);
+	const int m_ncells = m_nchars * m_ncolors * m_ncolors;
+
+	template <typename T>
+	[[nodiscard]] inline auto calc_pos(
+		const cv::MatConstIterator_<T>& bg_color,
+		const cv::MatConstIterator_<T>& fg_color) const noexcept
+		-> std::tuple<int, int>
+	{
+		const auto start_color = m_colormap.begin<T>();
+		return std::make_tuple(bg_color - start_color, fg_color - start_color);
+	}
+};
 
 int main()
 {
-	auto colormap = bgr2lab(cv::imread("colormap.png", cv::IMREAD_COLOR));
-	auto charmap = cv::imread("charmap.png", cv::IMREAD_COLOR);
-
-	constexpr auto n_chars = 10; // 10 in current palette " .:-=+*#%@"
-	const auto n_colors = colormap.size().width;
-	const auto char_w = charmap.size().width / n_chars;
-	const auto char_h = charmap.size().height / (n_colors * n_colors);
-	const auto n_charmap = n_chars * n_colors * n_colors;
+	const auto charmap = Charmap{
+		cv::imread("charmap.png", cv::IMREAD_COLOR),
+		cv::imread("colormap.png", cv::IMREAD_COLOR),
+		" .:-=+*#%@"
+	};
 
 	auto pic = cv::imread("test.jpg", cv::IMREAD_COLOR);
-	cv::resize(pic, pic, {}, 1.0, (double)char_w / char_h, cv::INTER_LINEAR);
-	auto art = cv::Mat(pic.size().height * char_h, pic.size().width * char_w, charmap.type());
-
+	cv::resize(pic, pic, {}, 1.0, (double)charmap.cellW() / charmap.cellH(), cv::INTER_LINEAR);
 	pic = bgr2lab(pic);
-	pic.forEach<lab_t<float>>([&colormap, &charmap, &art, char_w, char_h, n_chars, n_colors](lab_t<float>& p, const int* pos) {
-		auto [c1, c2, i1, i2] = similar2(p, colormap, CIE76_distance<float>);
-		auto d1 = CIE76_distance(p, c1);
-		auto d2 = CIE76_distance(p, c2);
-		int ic = d2 == 0 ? n_chars - 1 : d1 / d2 * (n_chars - 1);
 
-		auto y = pos[0];
-		auto x = pos[1];
+	const auto picw = pic.size().width;
+	const auto pich = pic.size().height;
+	const auto cellw = charmap.cellW();
+	const auto cellh = charmap.cellH();
+	auto art = cv::Mat(pich * cellh, picw * cellw, charmap.type());
 
-		auto sx = ic * char_w;
-		auto sy = i1 * char_h * n_colors + i2 * char_h;
+	pic.forEach<lab_t<float>>([&art, &charmap](auto p, const int* pos) noexcept {
+		const auto y = pos[0];
+		const auto x = pos[1];
+		
+		const auto cellw = charmap.cellW();
+		const auto cellh = charmap.cellH();
 
-		auto symbol = charmap.colRange(sx, sx + char_w).rowRange(sy, sy + char_h);
-		auto dst = art.colRange(x * char_w, (x + 1) * char_w).rowRange(y * char_h, (y + 1) * char_h);
-		symbol.copyTo(dst);
+		auto cell = charmap.getCell(p, CIE76_distance<float>);
+		const auto roi = cv::Rect{ x * cellw, y * cellh, cellw, cellh };
+		cell.copyTo(art(roi));
 	});
 
 	cv::cvtColor(pic, pic, cv::COLOR_Lab2BGR);
 
-	//cv::imshow("1", pic);
-	//cv::imshow("2", art);
+	cv::imshow("Result", art);
 	cv::imwrite("result.png", art);
-	//cv::waitKey(0);
+	cv::waitKey(0);
 }
