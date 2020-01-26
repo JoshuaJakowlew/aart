@@ -1,3 +1,5 @@
+#include <iostream>
+#include <chrono>
 #include <numeric>
 #include <opencv2/opencv.hpp>
 
@@ -252,28 +254,22 @@ private:
 	}
 };
 
-int main()
+[[nodiscard]] auto create_art(cv::Mat& pic, const Charmap& charmap) -> cv::Mat
 {
-	const auto charmap = Charmap{
-		cv::imread("charmap.png", cv::IMREAD_COLOR),
-		cv::imread("colormap.png", cv::IMREAD_COLOR),
-		" .:-=+*#%@"
-	};
-
-	auto pic = cv::imread("test.jpg", cv::IMREAD_COLOR);
-	cv::resize(pic, pic, {}, 1.0, (double)charmap.cellW() / charmap.cellH(), cv::INTER_LINEAR);
-	pic = bgr2lab(pic);
-
 	const auto picw = pic.size().width;
 	const auto pich = pic.size().height;
 	const auto cellw = charmap.cellW();
 	const auto cellh = charmap.cellH();
+
+	cv::resize(pic, pic, {}, 1.0, (double)cellw / cellh, cv::INTER_LINEAR);
+	pic = bgr2lab(pic);
+
 	auto art = cv::Mat(pich * cellh, picw * cellw, charmap.type());
 
 	pic.forEach<lab_t<float>>([&art, &charmap](auto p, const int* pos) noexcept {
 		const auto y = pos[0];
 		const auto x = pos[1];
-		
+
 		const auto cellw = charmap.cellW();
 		const auto cellh = charmap.cellH();
 
@@ -282,9 +278,49 @@ int main()
 		cell.copyTo(art(roi));
 	});
 
-	cv::cvtColor(pic, pic, cv::COLOR_Lab2BGR);
+	return art;
+}
 
-	cv::imshow("Result", art);
-	cv::imwrite("result.png", art);
-	cv::waitKey(0);
+auto convert_video(std::string_view filename) -> void
+{
+
+}
+
+int main()
+{
+	const auto charmap = Charmap{
+		cv::imread("charmap.png", cv::IMREAD_COLOR),
+		cv::imread("colormap.png", cv::IMREAD_COLOR),
+		" .:-=+*#%@"
+	};
+
+	std::chrono::high_resolution_clock clock;
+	auto start = clock.now();
+
+	auto cap = cv::VideoCapture("test.mp4", cv::CAP_FFMPEG);
+	const int nframes = cap.get(cv::VideoCaptureProperties::CAP_PROP_FRAME_COUNT);
+	const int fps = cap.get(cv::VideoCaptureProperties::CAP_PROP_FPS);
+
+	cv::Mat pic;
+	cap >> pic;
+	const auto art = create_art(pic, charmap);
+
+	const int fourcc = cv::VideoWriter::fourcc('a', 'v', 'c', '1');
+	auto writer = cv::VideoWriter("result.mp4", fourcc, fps, art.size());
+	
+	writer << art;
+
+	while (true)
+	{
+		cap >> pic;
+		if (pic.empty())
+			break;
+
+		writer << create_art(pic, charmap);
+	}
+
+	auto end = clock.now();
+	auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+	const auto conv_fps = (float)nframes / elapsed * 1000;
+	std::cout << elapsed << "ms elapsed\naverage fps: " << conv_fps << '\n' << conv_fps / fps << "x video fps\n";
 }
