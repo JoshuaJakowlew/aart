@@ -256,13 +256,14 @@ private:
 
 [[nodiscard]] auto create_art(cv::Mat& pic, const Charmap& charmap) -> cv::Mat
 {
-	const auto picw = pic.size().width;
-	const auto pich = pic.size().height;
 	const auto cellw = charmap.cellW();
 	const auto cellh = charmap.cellH();
 
 	cv::resize(pic, pic, {}, 1.0, (double)cellw / cellh, cv::INTER_LINEAR);
 	pic = bgr2lab(pic);
+
+	const auto picw = pic.size().width;
+	const auto pich = pic.size().height;
 
 	auto art = cv::Mat(pich * cellh, picw * cellw, charmap.type());
 
@@ -281,23 +282,9 @@ private:
 	return art;
 }
 
-auto convert_video(std::string_view filename) -> void
+auto convert_video(const std::string& infile, const std::string& outfile, const Charmap& charmap) -> void
 {
-
-}
-
-int main()
-{
-	const auto charmap = Charmap{
-		cv::imread("charmap.png", cv::IMREAD_COLOR),
-		cv::imread("colormap.png", cv::IMREAD_COLOR),
-		" .:-=+*#%@"
-	};
-
-	std::chrono::high_resolution_clock clock;
-	auto start = clock.now();
-
-	auto cap = cv::VideoCapture("test.mp4", cv::CAP_FFMPEG);
+	auto cap = cv::VideoCapture(infile, cv::CAP_FFMPEG);
 	const int nframes = cap.get(cv::VideoCaptureProperties::CAP_PROP_FRAME_COUNT);
 	const int fps = cap.get(cv::VideoCaptureProperties::CAP_PROP_FPS);
 
@@ -306,9 +293,12 @@ int main()
 	const auto art = create_art(pic, charmap);
 
 	const int fourcc = cv::VideoWriter::fourcc('a', 'v', 'c', '1');
-	auto writer = cv::VideoWriter("result.mp4", fourcc, fps, art.size());
-	
+	auto writer = cv::VideoWriter(outfile, fourcc, fps, art.size());
+
 	writer << art;
+
+	int frames_processed = 1;
+	int frame_percent = nframes / 100;
 
 	while (true)
 	{
@@ -317,10 +307,55 @@ int main()
 			break;
 
 		writer << create_art(pic, charmap);
+
+		if (++frames_processed % (frame_percent * 10) == 0)
+			std::cout << frames_processed << '/' << nframes << " frames processed\n";
 	}
 
-	auto end = clock.now();
-	auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-	const auto conv_fps = (float)nframes / elapsed * 1000;
-	std::cout << elapsed << "ms elapsed\naverage fps: " << conv_fps << '\n' << conv_fps / fps << "x video fps\n";
+	std::cout << "All frames processed\n";
+}
+
+auto convert_image(const std::string& infile, const std::string& outfile, const Charmap& charmap) -> void
+{
+	auto pic = cv::imread(infile);
+	cv::imwrite(outfile, create_art(pic, charmap));
+}
+
+int main(int argc, char* argv[])
+{
+	using namespace std::literals;
+
+	if (argv[1] == "--help"s)
+	{
+		std::cout << "Usage: aart charmap colormap mode [-p for picture, -v for video] input output\n"
+				  << "Example: aart charmap.png colormap.png -p image.png art.png\n";
+	}
+	else if (argc == 6)
+	{
+		const auto charmap = Charmap{
+		cv::imread(argv[1], cv::IMREAD_COLOR),
+		cv::imread(argv[2], cv::IMREAD_COLOR),
+		" .:-=+*#%@"s
+		};
+
+		const auto mode = argv[3];
+		if (mode == "-p"s)
+		{
+			std::cout << "Converting picture " << argv[4] << " to ascii art!"s;
+			convert_image(argv[4], argv[5], charmap);
+		}
+		else if (mode == "-v"s)
+		{
+			std::cout << "Converting video " << argv[4] << " to ascii art!\nPlease, wait. Video conversion can take a lot of time\n"s;
+			convert_video(argv[4], argv[5], charmap);
+		}
+		else
+		{
+			std::cout << "Error: wrong input, try use --help\n"s;
+		}
+	}
+	else
+	{
+		std::cout << "Error: wrong input, try use --help\n"s;
+	}
 }
