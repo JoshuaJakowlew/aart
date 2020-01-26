@@ -5,8 +5,10 @@ No explanations, just look at the example. I used default 16-color palette from 
 ![Image](aart/test.jpg) 
 ![Image](aart/ascii-art.png) 
 
-It's simple but beautiful. You can convert even videofiles. Here is the command line syntax:
+It's simple but beautiful. You can convert even videofiles.
+[This is](https://youtu.be/HAmjZi_CUzo) sample video converted with custom palette (not the best one).
 
+Here is command-line syntax
 ```
 aart charmap colormap mode input output
 ```
@@ -15,7 +17,7 @@ where `charmap` is path to the main palette, `colormap` is path to the color pal
 
 Aart includes sample palette and mediafiles that were used for testing.
 
-# Recomendations and known problems
+# Recommendations and known problems
 Default palette works best at bright and colorful images. If you want to get better results - find more suitable colors or just increase their number.
 But larger palettes kills the charm of the resulting art.
 
