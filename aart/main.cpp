@@ -117,10 +117,24 @@ namespace cv {
 	return result;
 }
 
+// Comprasion functions
+
 template <typename T>
 [[nodiscard]] constexpr auto CIE76_distance(const lab_t<T>& x, const lab_t<T>& y) noexcept -> T
 {
 	return sqrt(pow(x.l - y.l, 2) + pow(x.a - y.a, 2) + pow(x.b - y.b, 2));
+}
+
+template <typename T>
+[[nodiscard]] constexpr auto CIE76_distance_sqr(const lab_t<T>& x, const lab_t<T>& y) noexcept -> T
+{
+	return pow(x.l - y.l, 2) + pow(x.a - y.a, 2) + pow(x.b - y.b, 2);
+}
+
+template <typename T>
+[[nodiscard]] constexpr auto RGB_euclidian_sqr(const rgb_t<T>& x, const rgb_t<T>& y) noexcept -> T
+{
+	return pow(x.g - y.g, 2) + pow(x.g - y.g, 2) + pow(x.b - y.b, 2);
 }
 
 template <typename T, typename F>
@@ -151,7 +165,7 @@ template <typename T, typename F>
 }
 
 template <typename T, typename F>
-[[nodiscard]] auto similar2(const T& goal, const cv::Mat& palette, F distance) noexcept -> std::tuple<cv::MatConstIterator_<T>, cv::MatConstIterator_<T>>
+[[nodiscard]] auto similar2(const T& goal, const cv::Mat& palette, F distance) noexcept -> std::tuple<cv::MatConstIterator_<T>, cv::MatConstIterator_<T>, double, double>
 {
 	auto dmin1 = distance(goal, *palette.begin<T>());
 	auto dmin2 = dmin1;
@@ -177,7 +191,7 @@ template <typename T, typename F>
 		}
 	}
 
-	return std::make_tuple(c1, c2);
+	return std::make_tuple(c1, c2, dmin1, dmin2);
 }
 
 class Charmap
@@ -213,11 +227,11 @@ public:
 	[[nodiscard]] auto getCell(const T& color, F distance) const noexcept -> cv::Mat
 	{
 		// Get best colors and calculate its palette index
-		const auto [bg_color, fg_color] = similar2(color, m_colormap, distance);
+		const auto [bg_color, fg_color, bg_delta, fg_delta] = similar2(color, m_colormap, distance);
 		const auto [bg_pos, fg_pos] = calc_pos(bg_color, fg_color);
 
-		const auto bg_delta = distance(color, *bg_color);
-		const auto fg_delta = distance(color, *fg_color);
+		/*const auto bg_delta = distance(color, *bg_color);
+		const auto fg_delta = distance(color, *fg_color);*/
 
 		// Calculate character index
 		const int char_pos = fg_delta == 0 ?
@@ -274,7 +288,7 @@ private:
 		const auto cellw = charmap.cellW();
 		const auto cellh = charmap.cellH();
 
-		auto cell = charmap.getCell(p, CIE76_distance<float>);
+		auto cell = charmap.getCell(p, CIE76_distance_sqr<float>);
 		const auto roi = cv::Rect{ x * cellw, y * cellh, cellw, cellh };
 		cell.copyTo(art(roi));
 	});
@@ -325,7 +339,7 @@ int main(int argc, char* argv[])
 {
 	using namespace std::literals;
 
-	if (argv[1] == "--help"s)
+	/*if (argc >= 2 && argv[1] == "--help"s)
 	{
 		std::cout << "Usage: aart charmap colormap mode [-p for picture, -v for video] input output\n"
 				  << "Example: aart charmap.png colormap.png -p image.png art.png\n";
@@ -357,5 +371,26 @@ int main(int argc, char* argv[])
 	else
 	{
 		std::cout << "Error: wrong input, try use --help\n"s;
+	}*/
+
+	
+	const auto charmap = Charmap{
+		cv::imread("charmap.png", cv::IMREAD_COLOR),
+		cv::imread("colormap.png", cv::IMREAD_COLOR),
+		" .:-=+*#%@"s
+	};
+
+	constexpr auto runs = 3;
+
+	std::chrono::high_resolution_clock clock;
+	auto start = clock.now();
+
+	for (int i = 1; i <= runs; ++i)
+	{
+		convert_video("test.mp4", "out.mp4", charmap);
 	}
+
+	auto end = clock.now();
+	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+	std::cout << duration / (float)runs << "ms average in " << runs << "runs\n";
 }
