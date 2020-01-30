@@ -29,7 +29,7 @@ template <typename T>
 		const auto cellw = charmap.cellW();
 		const auto cellh = charmap.cellH();
 
-		auto cell = charmap.getCell(p, RGB_euclidian_sqr);
+		auto cell = charmap.getCell(p, CIE76_distance_sqr);
 		const auto roi = cv::Rect{ x * cellw, y * cellh, cellw, cellh };
 		cell.copyTo(art(roi));
 	});
@@ -62,7 +62,7 @@ auto convert_video(const std::string& infile, const std::string& outfile, const 
 		if (pic.empty())
 			break;
 
-		writer << create_art<T>(pic, charmap);
+		writer << art;//  create_art<T>(pic, charmap);
 
 		if (++frames_processed % (frame_percent * 10) == 0)
 			std::cout << frames_processed << '/' << nframes << " frames processed\n";
@@ -81,39 +81,24 @@ auto convert_image(const std::string& infile, const std::string& outfile, const 
 int main(int argc, char* argv[])
 {
 	using namespace std::literals;
-	using color_t = rgb_t<float>;
+	using color_t = lab_t<float>;
 
-	if (argc >= 2 && argv[1] == "--help"s)
-	{
-		std::cout << "Usage: aart charmap colormap mode [-p for picture, -v for video] input output\n"
-				  << "Example: aart charmap.png colormap.png -p image.png art.png\n";
-	}
-	else if (argc == 6)
-	{
-		const auto charmap = Charmap<color_t>{
-		cv::imread(argv[1], cv::IMREAD_COLOR),
-		cv::imread(argv[2], cv::IMREAD_COLOR),
+	const auto charmap = Charmap<color_t>{
+		cv::imread("charmap.png", cv::IMREAD_COLOR),
+		cv::imread("colormap.png", cv::IMREAD_COLOR),
 		" .:-=+*#%@"s
-		};
+	};
 
-		const auto mode = argv[3];
-		if (mode == "-p"s)
-		{
-			std::cout << "Converting picture " << argv[4] << " to ascii art!"s;
-			convert_image<color_t>(argv[4], argv[5], charmap);
-		}
-		else if (mode == "-v"s)
-		{
-			std::cout << "Converting video " << argv[4] << " to ascii art!\nPlease, wait. Video conversion can take a lot of time\n"s;
-			convert_video<color_t>(argv[4], argv[5], charmap);
-		}
-		else
-		{
-			std::cout << "Error: wrong input, try use --help\n"s;
-		}
-	}
-	else
+	constexpr auto runs = 1;
+	std::chrono::high_resolution_clock clock;
+	auto start = clock.now();
+
+	for (int i = 1; i <= runs; ++i)
 	{
-		std::cout << "Error: wrong input, try use --help\n"s;
+		convert_video<color_t>("test.mp4", "out.mp4", charmap);
 	}
+
+	auto end = clock.now();
+	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+	std::cout << duration / (double)runs << "ms avg in " << runs << " runs\n";
 }
