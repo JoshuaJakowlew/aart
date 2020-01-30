@@ -49,7 +49,7 @@ auto convert_video(const std::string& infile, const std::string& outfile, const 
 	const auto art = create_art<T>(pic, charmap);
 
 	const int fourcc = cv::VideoWriter::fourcc('a', 'v', 'c', '1');
-	auto writer = cv::VideoWriter(outfile, fourcc, fps, art.size());
+	auto writer = cv::VideoWriter(outfile, cv::CAP_FFMPEG, fourcc, fps, art.size());
 
 	writer << art;
 
