@@ -11,9 +11,17 @@ int main(int argc, char* argv[])
 	using namespace std::literals;
 	using color_t = lab_t<float>;
 
-	const auto charmap = Charmap<color_t>{
-		cv::imread("charmap.png", cv::IMREAD_COLOR),
-		cv::imread("colormap.png", cv::IMREAD_COLOR),
+	const auto charmap = cv::imread("charmap.png", cv::IMREAD_COLOR);
+	const auto colormap = cv::imread("colormap.png", cv::IMREAD_COLOR);
+	cv::cuda::GpuMat gpu_charmap;
+	cv::cuda::GpuMat gpu_colormap;
+
+	gpu_charmap.upload(charmap);
+	gpu_colormap.upload(colormap);
+
+	const auto charmap_ = cuda::Charmap<color_t>{
+		gpu_charmap,
+		gpu_colormap,
 		" .:-=+*#%@"s
 	};
 
@@ -23,7 +31,7 @@ int main(int argc, char* argv[])
 
 	for (int i = 1; i <= runs; ++i)
 	{
-		cuda::convert_image<color_t>("test.jpg", "out.png", charmap);
+		cuda::convert_image<color_t>("test.jpg", "out.png", charmap_);
 	}
 
 	auto end = clock.now();

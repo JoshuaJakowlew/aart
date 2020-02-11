@@ -8,6 +8,7 @@ struct rgb_t
 {
 	using value_type = T;
 
+	constexpr rgb_t() noexcept = default;
 	constexpr rgb_t(T r, T g, T b) noexcept :
 		r{ r },
 		g{ g },
@@ -56,6 +57,7 @@ struct lab_t
 {
 	using value_type = T;
 
+	constexpr lab_t() noexcept = default;
 	constexpr lab_t(T l, T a, T b) noexcept :
 		l{ l },
 		a{ a },
@@ -154,6 +156,17 @@ template <>
 	cv::cvtColor(std::move(result), result, cv::COLOR_BGR2Lab);
 	return result;
 }
+
+template <typename T, typename D, typename I = int>
+struct SimilarColors
+{
+	T bg{};
+	T fg{};
+	D bg_delta{};
+	D fg_delta{};
+	I bg_index{};
+	I fg_index{};
+};
 
 namespace cuda {
 	template <typename T>

@@ -88,11 +88,10 @@ namespace cuda {
 		const auto picw = pic.size().width;
 		const auto pich = pic.size().height;
 
-		auto art = cv::cuda::GpuMat(pich * cellh, picw * cellw, CV_32FC3);
+		auto art = cv::cuda::GpuMat(pich * cellh, picw * cellw, charmap.type());
 
 		// Run kernel
-		pic.copyTo(art);
-		set_color_with_cuda(art, art);
+		charmap.getCells(pic);
 
 		/*pic.forEach<T>([&art, &charmap](auto p, const int* pos) noexcept {
 			const auto y = pos[0];
@@ -117,8 +116,10 @@ namespace cuda {
 		gpu_pic.upload(pic);
 		gpu_pic = create_art<T>(gpu_pic, charmap);
 		gpu_pic.download(pic);
+
 		cv::cvtColor(pic, pic, cv::COLOR_Lab2BGR);
 		pic *= 255.f;
+		
 		cv::imwrite(outfile, pic);
 	}
 }
