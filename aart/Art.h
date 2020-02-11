@@ -3,6 +3,7 @@
 
 #include "Charmap.h"
 #include "Comparators.h"
+#include "cuda_kernels.h"
 
 template <typename T>
 [[nodiscard]] auto create_art(cv::Mat& pic, const Charmap<T>& charmap) -> cv::Mat
@@ -87,9 +88,12 @@ namespace cuda {
 		const auto picw = pic.size().width;
 		const auto pich = pic.size().height;
 
-		auto art = cv::cuda::GpuMat(pich * cellh, picw * cellw, charmap.type());
+		auto art = cv::cuda::GpuMat(pich * cellh, picw * cellw, CV_32FC3);
 
 		// Run kernel
+		pic.copyTo(art);
+		set_color_with_cuda(art, art);
+
 		/*pic.forEach<T>([&art, &charmap](auto p, const int* pos) noexcept {
 			const auto y = pos[0];
 			const auto x = pos[1];
@@ -113,6 +117,8 @@ namespace cuda {
 		gpu_pic.upload(pic);
 		gpu_pic = create_art<T>(gpu_pic, charmap);
 		gpu_pic.download(pic);
+		cv::cvtColor(pic, pic, cv::COLOR_Lab2BGR);
+		pic *= 255.f;
 		cv::imwrite(outfile, pic);
 	}
 }

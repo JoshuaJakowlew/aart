@@ -102,7 +102,7 @@ namespace cv {
 template <typename T>
 [[noreturn]] auto inline convertTo(const cv::Mat& img) noexcept -> cv::Mat
 {
-	static_assert(false, "Unsupported color type");
+	//static_assert(false, "Unsupported color type");
 }
 
 template <>
@@ -122,7 +122,7 @@ template <>
 {
 	cv::Mat result;
 	img.convertTo(result, CV_32FC3);
-	result /= 256.f; // normalize
+	result /= 255.f; // normalize
 	return result;
 }
 
@@ -131,7 +131,7 @@ template <>
 {
 	cv::Mat result;
 	img.convertTo(result, CV_64FC3);
-	result /= 256.0; // normalize
+	result /= 255.0; // normalize
 	return result;
 }
 
@@ -140,7 +140,7 @@ template <>
 {
 	cv::Mat result;
 	img.convertTo(result, CV_32FC3);
-	result /= 256.f; // normalize
+	result /= 255.f; // normalize
 	cv::cvtColor(std::move(result), result, cv::COLOR_BGR2Lab);
 	return result;
 }
@@ -150,7 +150,7 @@ template <>
 {
 	cv::Mat result;
 	img.convertTo(result, CV_64FC3);
-	result /= 256.0; // normalize
+	result /= 255.0; // normalize
 	cv::cvtColor(std::move(result), result, cv::COLOR_BGR2Lab);
 	return result;
 }
@@ -159,7 +159,7 @@ namespace cuda {
 	template <typename T>
 	[[noreturn]] auto inline convertTo(const cv::cuda::GpuMat& img) noexcept -> cv::cuda::GpuMat
 	{
-		static_assert(false, "Unsupported color type");
+		//static_assert(false, "Unsupported color type");
 	}
 
 	template <>

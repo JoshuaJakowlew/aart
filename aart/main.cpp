@@ -23,12 +23,7 @@ int main(int argc, char* argv[])
 
 	for (int i = 1; i <= runs; ++i)
 	{
-		//cuda::convert_image<color_t>("test.jpg", "out.png", charmap);
-		float a[5] = { 1, 2, 3, 4, 5 };
-		float b[5] = { 1, 2, 3, 4, 5 };
-		float c[5];
-		add_with_cuda(a, b, c, 5);
-		int aa = c[0];
+		cuda::convert_image<color_t>("test.jpg", "out.png", charmap);
 	}
 
 	auto end = clock.now();
