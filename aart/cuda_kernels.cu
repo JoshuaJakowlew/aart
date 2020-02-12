@@ -7,28 +7,6 @@
 
 using similar_t = SimilarColors<lab_t<float>, float>;
 
-__global__ void vectorAdd(const float* A, const float* B, float* C, int numElements) {
-    int i = threadIdx.x;
-    
-    C[i] = A[i] + B[i];
-}
-
-__global__ void setColor(const cv::cuda::PtrStepSz<lab_t<float>> input, cv::cuda::PtrStepSz<lab_t<float>> output)
-{
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-
-    if (x <= input.cols - 1 && y <= input.rows - 1 && y >= 0 && x >= 0)
-    {
-        auto color = input(y, x);
-        color.l = 60.32f;
-        color.a = 98.24f;
-        color.b = -60.84f;
-        output(y, x) = color;
-        //output(y, x) = input(y, x);
-    }
-}
-
 __device__ float CIE76_compare(const lab_t<float>* x, const lab_t<float>* y)
 {
     return pow(x->l - y->l, 2) + pow(x->a - y->a, 2) + pow(x->b - y->b, 2);
@@ -131,7 +109,7 @@ __global__ void divide(cv::cuda::PtrStepSz<lab_t<float>> mat, float val)
 }
 
 namespace cuda {
-    [[nodiscard]] auto similar2_CIE76_compare(cv::InputArray gpu_picture, cv::InputArray gpu_colormap) -> std::unique_ptr<similar_t>
+    [[nodiscard]] auto similar2_CIE76_compare(cv::InputArray gpu_picture, cv::InputArray gpu_colormap) -> std::unique_ptr<similar_t, void(*)(similar_t*)>
     {
         const auto picture = gpu_picture.getGpuMat();
         const auto colormap = gpu_colormap.getGpuMat();
@@ -151,16 +129,16 @@ namespace cuda {
 
         auto err = cudaGetLastError();
 
-        similar_t* similarp = (similar_t*)malloc(sizeof(similar_t) * picture.rows * picture.cols);
-        auto similar = std::unique_ptr<similar_t>(similarp);
+        //similar_t* similarp = (similar_t*)malloc(sizeof(similar_t) * picture.rows * picture.cols);
+        auto similar = std::unique_ptr<similar_t, void(*)(similar_t*)>(gpu_similar, [](similar_t* similar) noexcept { cudaFree(similar); });
 
-        cudaMemcpy(similar.get(), gpu_similar, sizeof(similar_t) * picture.rows * picture.cols, cudaMemcpyDeviceToHost);
-        cudaFree(gpu_similar);
+        //cudaMemcpy(similar.get(), gpu_similar, sizeof(similar_t) * picture.rows * picture.cols, cudaMemcpyDeviceToHost);
+        //cudaFree(gpu_similar);
         return similar;
     }
 
     [[nodiscard]] auto copy_symbols(cv::cuda::GpuMat& art, const cv::cuda::GpuMat& charmap,
-        const similar_t* colors, int w, int h, int cellW, int cellH, int nChars) -> void
+        const std::unique_ptr<similar_t, void(*)(similar_t*)> colors, int w, int h, int cellW, int cellH, int nChars) -> void
     {
         dim3 cthreads{ 16, 16 };
         dim3 cblocks{
@@ -170,14 +148,8 @@ namespace cuda {
                 static_cast<double>(cthreads.y)))
         };
 
-        similar_t* gpu_colors;
-        cudaMalloc(&gpu_colors, sizeof(similar_t) * w * h);
-        cudaMemcpy(gpu_colors, colors, sizeof(similar_t) * w * h, cudaMemcpyHostToDevice);
-
-        ::copy_symbols<<<cblocks, cthreads>>>(art, charmap, gpu_colors, w, h, cellW, cellH, nChars);
+        ::copy_symbols<<<cblocks, cthreads>>>(art, charmap, colors.get(), w, h, cellW, cellH, nChars);
         auto error = cudaGetLastError();
-
-        cudaFree(gpu_colors);
     }
 
     auto divide(cv::cuda::GpuMat& mat, float x) -> void
@@ -192,36 +164,4 @@ namespace cuda {
 
         ::divide<<<cblocks, cthreads>>>(mat, x);
     }
-}
-
-void set_color_with_cuda(cv::InputArray _input, cv::OutputArray _output)
-{
-    const cv::cuda::GpuMat input = _input.getGpuMat();
-
-    _output.create(input.size(), input.type());
-    cv::cuda::GpuMat output = _output.getGpuMat();
-
-    dim3 cthreads(16, 16);
-    dim3 cblocks(
-        static_cast<int>(std::ceil(input.size().width /
-            static_cast<double>(cthreads.x))),
-        static_cast<int>(std::ceil(input.size().height /
-            static_cast<double>(cthreads.y))));
-    setColor<<<cblocks, cthreads>>> (input, output);
-}
-
-void add_with_cuda(const float* A, const float* B, float* C, int numElements)
-{
-    float *gpuA, *gpuB, *gpuC;
-    cudaMalloc(&gpuA, sizeof(float) * numElements);
-    cudaMalloc(&gpuB, sizeof(float) * numElements);
-    cudaMalloc(&gpuC, sizeof(float) * numElements);
-
-    cudaMemcpy(gpuA, A, sizeof(float) * numElements, cudaMemcpyHostToDevice);
-    cudaMemcpy(gpuB, B, sizeof(float) * numElements, cudaMemcpyHostToDevice);
-    cudaMemcpy(gpuC, C, sizeof(float) * numElements, cudaMemcpyHostToDevice);
-
-    vectorAdd<<<1, numElements>>>(gpuA, gpuB, gpuC, numElements);
-
-    cudaMemcpy(C, gpuC, sizeof(float) * numElements, cudaMemcpyDeviceToHost);
 }

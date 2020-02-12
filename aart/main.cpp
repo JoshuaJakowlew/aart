@@ -13,7 +13,7 @@ int main(int argc, char* argv[])
 
 	const auto charmap = cv::imread("charmap.png", cv::IMREAD_COLOR);
 	auto colormap = cv::imread("colormap.png", cv::IMREAD_COLOR);
-	//colormap = convertTo<color_t>(colormap);
+
 	cv::cuda::GpuMat gpu_charmap;
 	cv::cuda::GpuMat gpu_colormap;
 
@@ -25,21 +25,22 @@ int main(int argc, char* argv[])
 		gpu_colormap,
 		" .:-=+*#%@"s
 	};
-
 	const auto charmap__ = Charmap<color_t>{
 		charmap,
 		colormap,
 		" .:-=+*#%@"s
 	};
 
-	constexpr auto runs = 1000;
+	constexpr auto runs = 3;
 	std::chrono::high_resolution_clock clock;
 	auto start = clock.now();
 
 	for (int i = 1; i <= runs; ++i)
 	{
-		//cuda::convert_video<color_t>("test.mp4", "out.mp4", charmap_);
-		cuda::convert_image<color_t>("test.jpg", "out.png", charmap_);
+		cuda::convert_video<color_t>("test.mp4", "out.mp4", charmap_);
+		//convert_video<color_t>("test.mp4", "out.mp4", charmap__);
+		//cuda::convert_image<color_t>("test.jpg", "out.png", charmap_);
+		//convert_image<color_t>("test.jpg", "out.png", charmap__);
 	}
 
 	auto end = clock.now();

@@ -38,7 +38,7 @@ public:
 	template <typename F>
 	[[nodiscard]] auto getCell(const T& color, F distance) const noexcept -> cv::Mat;
 
-//private:
+private:
 #pragma region members
 	cv::Mat m_charmap;
 	cv::Mat m_colormap;
@@ -160,64 +160,12 @@ namespace cuda {
 		const int m_cellh = m_charmap.size().height / (m_ncolors * m_ncolors);
 		const int m_ncells = m_nchars * m_ncolors * m_ncolors;
 #pragma endregion members
-
-		template <typename D>
-		[[nodiscard]] auto similar2(const T& goal, D(*distance)(const T&, const T&)) const noexcept->SimilarColors<T, D>;
 	};
 
 	template <typename T>
 	[[nodiscard]] auto Charmap<T>::getCells(const cv::cuda::GpuMat& picture) const noexcept
 	{
 		return similar2_CIE76_compare(picture, m_colormap);
-
-		//// Calculate character index
-		//const int char_pos = colors.fg_delta == 0 ?
-		//	m_nchars - 1 :
-		//	colors.bg_delta / colors.fg_delta * (m_nchars - 1);
-
-		//// Calculate cell position in charmap
-		//const auto cell_x = char_pos * m_cellw;
-		//const auto cell_y = (colors.bg_index * m_ncolors + colors.fg_index) * m_cellh;
-
-		//return m_charmap(cv::Rect{ cell_x, cell_y, m_cellw, m_cellh });
-	}
-
-	template <typename T>
-	template <typename D>
-	[[nodiscard]] auto Charmap<T>::similar2(const T& goal, D(*distance)(const T&, const T&)) const noexcept -> SimilarColors<T, D>
-	{
-		const auto start_color = m_colormap.begin<T>();
-		auto delta1 = distance(goal, *start_color);
-		auto delta2 = delta1;
-		auto color1 = start_color;
-		auto color2 = color1;
-
-		for (auto color = start_color + 1; color != m_colormap.end<T>(); ++color)
-		{
-			const auto delta = distance(goal, *color);
-
-			if (delta < delta1) {
-				delta2 = delta1;
-				delta1 = delta;
-
-				color2 = color1;
-				color1 = color;
-			}
-			else if (delta < delta2) {
-				delta2 = delta;
-
-				color2 = color;
-			}
-		}
-
-		const int index1 = color1 - start_color;
-		const int index2 = color2 - start_color;
-
-		return {
-			*color1, *color2,
-			 delta1,  delta2,
-			 index1,  index2
-		};
 	}
 }
 

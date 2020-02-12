@@ -105,6 +105,7 @@ template <typename T>
 [[noreturn]] auto inline convertTo(const cv::Mat& img) noexcept -> cv::Mat
 {
 	//static_assert(false, "Unsupported color type");
+	std::cout << "Shit happens\n";
 }
 
 template <>
@@ -183,12 +184,7 @@ namespace cuda {
 	{
 		cv::cuda::GpuMat result;
 		img.convertTo(result, CV_32FC3);
-		/*cv::Mat host;
-		result.download(host);
-		host /= 255.f;
-		result.upload(host);*/
-		cuda::divide(result, 255.f);
-		//cv::cuda::multiply(result, 1.f / 255.f, result);
+		cuda::divide(result, 255.f); // normalize
 		cv::cuda::cvtColor(std::move(result), result, cv::COLOR_BGR2Lab);
 		return result;
 	}

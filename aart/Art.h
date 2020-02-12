@@ -46,7 +46,7 @@ auto convert_video(const std::string& infile, const std::string& outfile, const 
 	const auto art = create_art<T>(pic, charmap);
 
 	const int fourcc = cv::VideoWriter::fourcc('a', 'v', 'c', '1');
-	auto writer = cv::VideoWriter(outfile, cv::CAP_FFMPEG, fourcc, fps, art.size());
+	auto writer = cv::VideoWriter(outfile, cv::CAP_MSMF, fourcc, fps, art.size());
 
 	writer << art;
 
@@ -90,8 +90,8 @@ namespace cuda {
 
 		auto art = cv::cuda::GpuMat(pich * cellh, picw * cellw, charmap.type());
 
-		const auto colors = charmap.getCells(pic);
-		copy_symbols(art, charmap.m_charmap, colors.get(), picw, pich, charmap.m_cellw, charmap.m_cellh, charmap.m_nchars);
+		auto colors = charmap.getCells(pic);
+		copy_symbols(art, charmap.m_charmap, std::move(colors), picw, pich, charmap.m_cellw, charmap.m_cellh, charmap.m_nchars);
 
 		return art;
 	}
@@ -127,7 +127,7 @@ namespace cuda {
 		gpu_pic.download(art);
 
 		const int fourcc = cv::VideoWriter::fourcc('a', 'v', 'c', '1');
-		auto writer = cv::VideoWriter(outfile, cv::CAP_FFMPEG, fourcc, fps, art.size());
+		auto writer = cv::VideoWriter(outfile, cv::CAP_MSMF, fourcc, fps, art.size());
 
 		writer << art;
 
@@ -144,7 +144,7 @@ namespace cuda {
 			gpu_pic = create_art<T>(gpu_pic, charmap);
 			gpu_pic.download(art);
 
-			writer << art;//  create_art<T>(pic, charmap);
+			writer << art;
 
 			if (++frames_processed % (frame_percent * 10) == 0)
 				std::cout << frames_processed << '/' << nframes << " frames processed\n";
