@@ -2,7 +2,6 @@
 #define CHARMAP_H
 
 #include "Colors.h"
-#include "cuda_kernels.h"
 
 template <typename T>
 class Charmap
@@ -39,7 +38,7 @@ public:
 	template <typename F>
 	[[nodiscard]] auto getCell(const T& color, F distance) const noexcept -> cv::Mat;
 
-private:
+//private:
 #pragma region members
 	cv::Mat m_charmap;
 	cv::Mat m_colormap;
@@ -146,9 +145,9 @@ namespace cuda {
 		}
 #pragma endregion getters
 
-		[[nodiscard]] auto getCells(const cv::cuda::GpuMat& picture) const noexcept -> void;
+		[[nodiscard]] auto getCells(const cv::cuda::GpuMat& picture) const noexcept;
 
-	private:
+	//private:
 #pragma region members
 		cv::cuda::GpuMat m_charmap;
 		cv::cuda::GpuMat m_colormap;
@@ -167,9 +166,9 @@ namespace cuda {
 	};
 
 	template <typename T>
-	[[nodiscard]] auto Charmap<T>::getCells(const cv::cuda::GpuMat& picture) const noexcept -> void
+	[[nodiscard]] auto Charmap<T>::getCells(const cv::cuda::GpuMat& picture) const noexcept
 	{
-		const auto colors = similar2_CIE76_compare(picture, m_colormap);
+		return similar2_CIE76_compare(picture, m_colormap);
 
 		//// Calculate character index
 		//const int char_pos = colors.fg_delta == 0 ?

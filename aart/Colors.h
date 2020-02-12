@@ -168,11 +168,14 @@ struct SimilarColors
 	I fg_index{};
 };
 
+#include "cuda_kernels.h"
+
 namespace cuda {
 	template <typename T>
 	[[noreturn]] auto inline convertTo(const cv::cuda::GpuMat& img) noexcept -> cv::cuda::GpuMat
 	{
 		//static_assert(false, "Unsupported color type");
+		std::cout << "Shit happens\n";
 	}
 
 	template <>
@@ -180,7 +183,12 @@ namespace cuda {
 	{
 		cv::cuda::GpuMat result;
 		img.convertTo(result, CV_32FC3);
-		cv::cuda::divide(result, cv::Scalar_<float>{255.f}, result);
+		/*cv::Mat host;
+		result.download(host);
+		host /= 255.f;
+		result.upload(host);*/
+		cuda::divide(result, 255.f);
+		//cv::cuda::multiply(result, 1.f / 255.f, result);
 		cv::cuda::cvtColor(std::move(result), result, cv::COLOR_BGR2Lab);
 		return result;
 	}

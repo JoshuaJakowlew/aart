@@ -34,7 +34,7 @@ __device__ float CIE76_compare(const lab_t<float>* x, const lab_t<float>* y)
     return pow(x->l - y->l, 2) + pow(x->a - y->a, 2) + pow(x->b - y->b, 2);
 }
 
-__global__ void similar2_CIE76_compare(const cv::cuda::PtrStepSz<lab_t<float>> picture, const cv::cuda::PtrStepSz<lab_t<float>> colormap, similar_t* similar)
+__global__ void similar2_CIE76_compare(const cv::cuda::PtrStepSz<lab_t<float>> picture, cv::cuda::PtrStepSz<lab_t<float>> colormap, similar_t* similar)
 {
     const int x = blockIdx.x * blockDim.x + threadIdx.x;
     const int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -59,8 +59,8 @@ __global__ void similar2_CIE76_compare(const cv::cuda::PtrStepSz<lab_t<float>> p
                 delta2 = delta1;
                 delta1 = delta;
 
-                color2 = color1;
-                color1 = color;
+                //color2 = color1;
+                //color1 = color;
 
                 index2 = index1;
                 index1 = i;
@@ -68,7 +68,7 @@ __global__ void similar2_CIE76_compare(const cv::cuda::PtrStepSz<lab_t<float>> p
             else if (delta < delta2) {
                 delta2 = delta;
 
-                color2 = color;
+                //color2 = color;
 
                 index2 = i;
             }
@@ -79,6 +79,54 @@ __global__ void similar2_CIE76_compare(const cv::cuda::PtrStepSz<lab_t<float>> p
                  delta1,  delta2,
                  index1,  index2
         };
+    }
+}
+
+__global__ void copy_symbols(cv::cuda::PtrStepSz<rgb_t<uint8_t>> picture,
+    const cv::cuda::PtrStepSz<rgb_t<uint8_t>> charmap,
+    const similar_t* colors, int w, int h, int cellW, int cellH, int nChars)
+{
+    const int x = blockIdx.x * blockDim.x + threadIdx.x;
+    const int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (x <= w - 1 && y <= h - 1 && y >= 0 && x >= 0)
+    {
+        const int art_x = x * cellW;
+        const int art_y = y * cellH;
+
+        const auto similar = colors[y * w + x];
+
+        const int char_pos = similar.fg_delta == 0 ?
+            nChars - 1 :
+            similar.bg_delta / similar.fg_delta * (nChars - 1);
+
+        constexpr int nColors = 16;
+
+        const auto cell_x = char_pos * cellW;
+        const auto cell_y = (similar.bg_index * nColors + similar.fg_index) * cellH;
+
+        for (int yPos = 0; yPos < cellH; ++yPos)
+        {
+            for (int xPos = 0; xPos < cellW; ++xPos)
+            {
+                picture(art_y + yPos, art_x + xPos) = charmap(cell_y + yPos, cell_x + xPos);
+            }
+        }
+    }
+}
+
+__global__ void divide(cv::cuda::PtrStepSz<lab_t<float>> mat, float val)
+{
+    const int x = blockIdx.x * blockDim.x + threadIdx.x;
+    const int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (x <= mat.cols - 1 && y <= mat.rows - 1 && y >= 0 && x >= 0)
+    {
+        auto color = mat(y, x);
+        color.l /= val;
+        color.a /= val;
+        color.b /= val;
+        mat(y, x) = color;
     }
 }
 
@@ -109,6 +157,40 @@ namespace cuda {
         cudaMemcpy(similar.get(), gpu_similar, sizeof(similar_t) * picture.rows * picture.cols, cudaMemcpyDeviceToHost);
         cudaFree(gpu_similar);
         return similar;
+    }
+
+    [[nodiscard]] auto copy_symbols(cv::cuda::GpuMat& art, const cv::cuda::GpuMat& charmap,
+        const similar_t* colors, int w, int h, int cellW, int cellH, int nChars) -> void
+    {
+        dim3 cthreads{ 16, 16 };
+        dim3 cblocks{
+            static_cast<unsigned>(std::ceil(w /
+                static_cast<double>(cthreads.x))),
+            static_cast<unsigned>(std::ceil(h /
+                static_cast<double>(cthreads.y)))
+        };
+
+        similar_t* gpu_colors;
+        cudaMalloc(&gpu_colors, sizeof(similar_t) * w * h);
+        cudaMemcpy(gpu_colors, colors, sizeof(similar_t) * w * h, cudaMemcpyHostToDevice);
+
+        ::copy_symbols<<<cblocks, cthreads>>>(art, charmap, gpu_colors, w, h, cellW, cellH, nChars);
+        auto error = cudaGetLastError();
+
+        cudaFree(gpu_colors);
+    }
+
+    auto divide(cv::cuda::GpuMat& mat, float x) -> void
+    {
+        dim3 cthreads{ 16, 16 };
+        dim3 cblocks{
+            static_cast<unsigned>(std::ceil(mat.size().width /
+                static_cast<double>(cthreads.x))),
+            static_cast<unsigned>(std::ceil(mat.size().height /
+                static_cast<double>(cthreads.y)))
+        };
+
+        ::divide<<<cblocks, cthreads>>>(mat, x);
     }
 }
 
