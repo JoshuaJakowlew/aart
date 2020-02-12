@@ -53,7 +53,7 @@ private:
 #pragma endregion members
 
 	template <typename D>
-	[[nodiscard]] auto similar2(const T& goal, D(*distance)(const T&, const T&)) const noexcept -> SimilarColors<T, D>;
+	[[nodiscard]] auto similar2(const T& goal, D(*distance)(const T&, const T&)) const noexcept -> SimilarColors<D>;
 };
 
 template <typename T>
@@ -76,7 +76,7 @@ template <typename F>
 
 template <typename T>
 template <typename D>
-[[nodiscard]] auto Charmap<T>::similar2(const T& goal, D(*distance)(const T&, const T&)) const noexcept -> SimilarColors<T, D>
+[[nodiscard]] auto Charmap<T>::similar2(const T& goal, D(*distance)(const T&, const T&)) const noexcept -> SimilarColors<D>
 {
 	const auto start_color = m_colormap.begin<T>();
 	auto delta1 = distance(goal, *start_color);
@@ -106,7 +106,6 @@ template <typename D>
 	const int index2 = color2 - start_color;
 
 	return {
-		*color1, *color2,
 		 delta1,  delta2,
 		 index1,  index2
 	};

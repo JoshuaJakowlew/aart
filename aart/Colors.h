@@ -158,11 +158,9 @@ template <>
 	return result;
 }
 
-template <typename T, typename D, typename I = int>
+template <typename D, typename I = int>
 struct SimilarColors
 {
-	T bg{};
-	T fg{};
 	D bg_delta{};
 	D fg_delta{};
 	I bg_index{};

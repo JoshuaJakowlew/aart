@@ -5,11 +5,11 @@
 #include "Colors.h"
 #include "cuda_kernels.h"
 
-using similar_t = SimilarColors<lab_t<float>, float>;
+using similar_t = SimilarColors<float>;
 
 __device__ float CIE76_compare(const lab_t<float>* x, const lab_t<float>* y)
 {
-    return pow(x->l - y->l, 2) + pow(x->a - y->a, 2) + pow(x->b - y->b, 2);
+    return powf(x->l - y->l, 2) + powf(x->a - y->a, 2) + powf(x->b - y->b, 2);
 }
 
 __global__ void similar2_CIE76_compare(const cv::cuda::PtrStepSz<lab_t<float>> picture, cv::cuda::PtrStepSz<lab_t<float>> colormap, similar_t* similar)
@@ -23,8 +23,6 @@ __global__ void similar2_CIE76_compare(const cv::cuda::PtrStepSz<lab_t<float>> p
         const auto start_color = colormap(0, 0);
         auto delta1 = CIE76_compare(&goal, &start_color);
         auto delta2 = delta1;
-        auto color1 = start_color;
-        auto color2 = color1;
         auto index1 = 0;
         auto index2 = index1;
 
@@ -37,23 +35,17 @@ __global__ void similar2_CIE76_compare(const cv::cuda::PtrStepSz<lab_t<float>> p
                 delta2 = delta1;
                 delta1 = delta;
 
-                //color2 = color1;
-                //color1 = color;
-
                 index2 = index1;
                 index1 = i;
             }
             else if (delta < delta2) {
                 delta2 = delta;
 
-                //color2 = color;
-
                 index2 = i;
             }
         }
 
         similar[y * picture.cols + x] = similar_t{
-                 color1,  color2,
                  delta1,  delta2,
                  index1,  index2
         };
@@ -101,9 +93,9 @@ __global__ void divide(cv::cuda::PtrStepSz<lab_t<float>> mat, float val)
     if (x <= mat.cols - 1 && y <= mat.rows - 1 && y >= 0 && x >= 0)
     {
         auto color = mat(y, x);
-        color.l /= val;
-        color.a /= val;
-        color.b /= val;
+        color.l = __fdividef(color.l, val);
+        color.a = __fdividef(color.a, val);
+        color.b = __fdividef(color.b, val);
         mat(y, x) = color;
     }
 }
