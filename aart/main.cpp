@@ -31,19 +31,28 @@ int main(int argc, char* argv[])
 		" .:-=+*#%@"s
 	};
 
-	constexpr auto runs = 3;
+	constexpr auto runs = 200;
 	std::chrono::high_resolution_clock clock;
-	auto start = clock.now();
-
+	std::vector<size_t> run_time;
+	run_time.reserve(runs);
 	for (int i = 1; i <= runs; ++i)
 	{
-		cuda::convert_video<color_t>("test.mp4", "out.mp4", charmap_);
+		auto start = clock.now();
+		//cuda::convert_video<color_t>("test.mp4", "out.mp4", charmap_);
 		//convert_video<color_t>("test.mp4", "out.mp4", charmap__);
 		//cuda::convert_image<color_t>("test.jpg", "out.png", charmap_);
-		//convert_image<color_t>("test.jpg", "out.png", charmap__);
+		convert_image<color_t>("test.jpg", "out.png", charmap__);
+		auto end = clock.now();
+		auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+		run_time.emplace_back(duration);
 	}
 
-	auto end = clock.now();
-	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-	std::cout << duration / (double)runs << "ms avg in " << runs << " runs\n";
+	std::sort(run_time.begin(), run_time.end());
+	double avg = 0;
+	for (auto i : run_time)
+		avg += i;
+
+	std::cout << run_time[0] << "ms fastest in " << runs << " runs\n";
+	std::cout << *(run_time.end() - 1) << "ms longest in " << runs << " runs\n";
+	std::cout << size_t(avg / runs) << "ms avg in " << runs << " runs\n";
 }

@@ -91,7 +91,7 @@ namespace cuda {
 		auto art = cv::cuda::GpuMat(pich * cellh, picw * cellw, charmap.type());
 
 		auto colors = charmap.getCells(pic);
-		copy_symbols(art, charmap.m_charmap, std::move(colors), picw, pich, charmap.m_cellw, charmap.m_cellh, charmap.m_nchars);
+		copy_symbols(art, charmap.m_charmap, std::move(colors), picw, pich, charmap.m_cellw, charmap.m_cellh, charmap.m_colormap.cols, charmap.m_nchars);
 
 		return art;
 	}
