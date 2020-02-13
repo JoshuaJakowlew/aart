@@ -10,10 +10,9 @@ It's simple but beautiful. You can convert even videofiles.
 
 Here is command-line syntax
 ```
-aart charmap colormap mode input output
+aart --chr charmap --clr colormap -i input -o output [--vid, --img] [--cuda, --no-cuda]
 ```
-where `charmap` is path to the main palette, `colormap` is path to the color palette,
-`mode` can be `-p` for pictures and `-v` for videos. `input` and `output` are path to the input file and generated ascii-art.
+where `charmap` is path to the main palette, `colormap` is path to the color palette, `input` and `output` are path to the input file and generated ascii-art.
 
 Aart includes sample palette and mediafiles that were used for testing.
 
