@@ -5,14 +5,72 @@
 #include "Colors.h"
 #include "cuda_kernels.h"
 
-using similar_t = SimilarColors<float>;
+template <typename T>
+using matptr_t = cv::cuda::PtrStepSz<T>;
+
+__device__ inline float CIE76_compare(const lab_t<float>* x, const lab_t<float>* y);
+
+__global__ void similar2_CIE76_compare(const matptr_t<lab_t<float>> picture, const matptr_t<lab_t<float>> colormap, cuda::similar_t* similar);
+
+__global__ void copy_symbols(matptr_t<rgb_t<uint8_t>> picture,
+    const matptr_t<rgb_t<uint8_t>> charmap,
+    const cuda::similar_t* colors, int w, int h, int cellW, int cellH, int nColors, int nChars);
+
+__global__ void divide(matptr_t<lab_t<float>> mat, float val);
+
+namespace cuda {
+    [[nodiscard]] auto similar2_CIE76_compare(const cv::cuda::GpuMat& picture, const cv::cuda::GpuMat& colormap) -> similarptr_t
+    {
+        dim3 cthreads{ 16, 16 };
+        dim3 cblocks{
+            static_cast<unsigned>(std::ceil(picture.size().width /
+                static_cast<double>(cthreads.x))),
+            static_cast<unsigned>(std::ceil(picture.size().height /
+                static_cast<double>(cthreads.y)))
+        };
+
+        similar_t* gpu_similar;
+        cudaMalloc(&gpu_similar, sizeof(similar_t) * picture.rows * picture.cols);
+        similar2_CIE76_compare<<<cblocks, cthreads>>>(picture, colormap, gpu_similar);
+
+        return similarptr_t{ gpu_similar, [](similar_t* similar) noexcept { cudaFree(similar); } };
+    }
+
+    [[nodiscard]] auto copy_symbols(cv::cuda::GpuMat& art, const cv::cuda::GpuMat& charmap,
+        const similarptr_t colors, int w, int h, int cellW, int cellH, int nColors, int nChars) -> void
+    {
+        dim3 cthreads{ 16, 16 };
+        dim3 cblocks{
+            static_cast<unsigned>(std::ceil(w /
+                static_cast<double>(cthreads.x))),
+            static_cast<unsigned>(std::ceil(h /
+                static_cast<double>(cthreads.y)))
+        };
+
+        ::copy_symbols<<<cblocks, cthreads>>>(art, charmap, colors.get(), w, h, cellW, cellH, nColors, nChars);
+        auto error = cudaGetLastError();
+    }
+
+    auto divide(cv::cuda::GpuMat& mat, float x) -> void
+    {
+        dim3 cthreads{ 16, 16 };
+        dim3 cblocks{
+            static_cast<unsigned>(std::ceil(mat.size().width /
+                static_cast<double>(cthreads.x))),
+            static_cast<unsigned>(std::ceil(mat.size().height /
+                static_cast<double>(cthreads.y)))
+        };
+
+        ::divide<<<cblocks, cthreads>>>(mat, x);
+    }
+}
 
 __device__ inline float CIE76_compare(const lab_t<float>* x, const lab_t<float>* y)
 {
-    return (x->l - y->l)*(x->l - y->l) + (x->a - y->a)*(x->a - y->a) + (x->b - y->b)*(x->b - y->b);
+    return (x->l - y->l) * (x->l - y->l) + (x->a - y->a) * (x->a - y->a) + (x->b - y->b) * (x->b - y->b);
 }
 
-__global__ void similar2_CIE76_compare(const cv::cuda::PtrStepSz<lab_t<float>> picture, cv::cuda::PtrStepSz<lab_t<float>> colormap, similar_t* similar)
+__global__ void similar2_CIE76_compare(const matptr_t<lab_t<float>> picture, const matptr_t<lab_t<float>> colormap, cuda::similar_t* similar)
 {
     const int x = blockIdx.x * blockDim.x + threadIdx.x;
     const int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -45,16 +103,16 @@ __global__ void similar2_CIE76_compare(const cv::cuda::PtrStepSz<lab_t<float>> p
             }
         }
 
-        similar[y * picture.cols + x] = similar_t{
+        similar[y * picture.cols + x] = cuda::similar_t{
                  delta1,  delta2,
                  index1,  index2
         };
     }
 }
 
-__global__ void copy_symbols(cv::cuda::PtrStepSz<rgb_t<uint8_t>> picture,
-    const cv::cuda::PtrStepSz<rgb_t<uint8_t>> charmap,
-    const similar_t* colors, int w, int h, int cellW, int cellH, int nColors, int nChars)
+__global__ void copy_symbols(matptr_t<rgb_t<uint8_t>> picture,
+    const matptr_t<rgb_t<uint8_t>> charmap,
+    const cuda::similar_t* colors, int w, int h, int cellW, int cellH, int nColors, int nChars)
 {
     const int x = blockIdx.x * blockDim.x + threadIdx.x;
     const int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -69,25 +127,24 @@ __global__ void copy_symbols(cv::cuda::PtrStepSz<rgb_t<uint8_t>> picture,
         /*const int char_pos = similar.fg_delta == 0 ?
             nChars - 1 :
             similar.bg_delta / similar.fg_delta * (nChars - 1);*/
-      
+
         const int char_pos = __fdividef(fmaf(similar.bg_delta, nChars, -similar.bg_delta), similar.fg_delta);
-        
+
         const auto cell_x = char_pos * cellW;
         const auto cell_y = (similar.bg_index * nColors + similar.fg_index) * cellH;
-            //fmaf(similar.bg_index, nColors, similar.fg_index) * cellH;
 
         for (int yPos = 0; yPos < cellH; ++yPos)
         {
             for (int xPos = 0; xPos < cellW; ++xPos)
             {
                 picture(art_y + yPos, art_x + xPos) = charmap(cell_y + yPos, cell_x + xPos);
-                
+
             }
         }
     }
 }
 
-__global__ void divide(cv::cuda::PtrStepSz<lab_t<float>> mat, float val)
+__global__ void divide(matptr_t<lab_t<float>> mat, float val)
 {
     const int x = blockIdx.x * blockDim.x + threadIdx.x;
     const int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -99,63 +156,5 @@ __global__ void divide(cv::cuda::PtrStepSz<lab_t<float>> mat, float val)
         color.a = __fdividef(color.a, val);
         color.b = __fdividef(color.b, val);
         mat(y, x) = color;
-    }
-}
-
-namespace cuda {
-    [[nodiscard]] auto similar2_CIE76_compare(cv::InputArray gpu_picture, cv::InputArray gpu_colormap) -> std::unique_ptr<similar_t, void(*)(similar_t*)>
-    {
-        const auto picture = gpu_picture.getGpuMat();
-        const auto colormap = gpu_colormap.getGpuMat();
-
-        dim3 cthreads{ 16, 16 };
-        dim3 cblocks{
-            static_cast<unsigned>(std::ceil(picture.size().width /
-                static_cast<double>(cthreads.x))),
-            static_cast<unsigned>(std::ceil(picture.size().height /
-                static_cast<double>(cthreads.y)))
-        };
-
-        similar_t* gpu_similar;
-
-        cudaMalloc(&gpu_similar, sizeof(similar_t) * picture.rows * picture.cols);
-        similar2_CIE76_compare<<<cblocks, cthreads>>>(picture, colormap, gpu_similar);
-
-        auto err = cudaGetLastError();
-
-        //similar_t* similarp = (similar_t*)malloc(sizeof(similar_t) * picture.rows * picture.cols);
-        auto similar = std::unique_ptr<similar_t, void(*)(similar_t*)>(gpu_similar, [](similar_t* similar) noexcept { cudaFree(similar); });
-
-        //cudaMemcpy(similar.get(), gpu_similar, sizeof(similar_t) * picture.rows * picture.cols, cudaMemcpyDeviceToHost);
-        //cudaFree(gpu_similar);
-        return similar;
-    }
-
-    [[nodiscard]] auto copy_symbols(cv::cuda::GpuMat& art, const cv::cuda::GpuMat& charmap,
-        const std::unique_ptr<similar_t, void(*)(similar_t*)> colors, int w, int h, int cellW, int cellH, int nColors, int nChars) -> void
-    {
-        dim3 cthreads{ 16, 16 };
-        dim3 cblocks{
-            static_cast<unsigned>(std::ceil(w /
-                static_cast<double>(cthreads.x))),
-            static_cast<unsigned>(std::ceil(h /
-                static_cast<double>(cthreads.y)))
-        };
-
-        ::copy_symbols<<<cblocks, cthreads>>>(art, charmap, colors.get(), w, h, cellW, cellH, nColors, nChars);
-        auto error = cudaGetLastError();
-    }
-
-    auto divide(cv::cuda::GpuMat& mat, float x) -> void
-    {
-        dim3 cthreads{ 16, 16 };
-        dim3 cblocks{
-            static_cast<unsigned>(std::ceil(mat.size().width /
-                static_cast<double>(cthreads.x))),
-            static_cast<unsigned>(std::ceil(mat.size().height /
-                static_cast<double>(cthreads.y)))
-        };
-
-        ::divide<<<cblocks, cthreads>>>(mat, x);
     }
 }
