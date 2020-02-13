@@ -2,118 +2,129 @@
 #include <chrono>
 #include <numeric>
 #include <opencv2/opencv.hpp>
+#include <CLI11.hpp>
 
-#include "Charmap.h"
-#include "Comparators.h"
-
-// Comprasion functions
-
-template <typename T>
-[[nodiscard]] auto create_art(cv::Mat& pic, const Charmap<T>& charmap) -> cv::Mat
-{
-	const auto cellw = charmap.cellW();
-	const auto cellh = charmap.cellH();
-
-	cv::resize(pic, pic, {}, 1.0, (double)cellw / cellh, cv::INTER_LINEAR);
-	pic = convertTo<T>(pic);
-
-	const auto picw = pic.size().width;
-	const auto pich = pic.size().height;
-
-	auto art = cv::Mat(pich * cellh, picw * cellw, charmap.type());
-
-	pic.forEach<T>([&art, &charmap](auto p, const int* pos) noexcept {
-		const auto y = pos[0];
-		const auto x = pos[1];
-
-		const auto cellw = charmap.cellW();
-		const auto cellh = charmap.cellH();
-
-		auto cell = charmap.getCell(p, RGB_euclidian_sqr);
-		const auto roi = cv::Rect{ x * cellw, y * cellh, cellw, cellh };
-		cell.copyTo(art(roi));
-	});
-
-	return art;
-}
-
-template <typename T>
-auto convert_video(const std::string& infile, const std::string& outfile, const Charmap<T>& charmap) -> void
-{
-	auto cap = cv::VideoCapture(infile, cv::CAP_FFMPEG);
-	const int nframes = cap.get(cv::VideoCaptureProperties::CAP_PROP_FRAME_COUNT);
-	const int fps = cap.get(cv::VideoCaptureProperties::CAP_PROP_FPS);
-
-	cv::Mat pic;
-	cap >> pic;
-	const auto art = create_art<T>(pic, charmap);
-
-	const int fourcc = cv::VideoWriter::fourcc('a', 'v', 'c', '1');
-	auto writer = cv::VideoWriter(outfile, cv::CAP_FFMPEG, fourcc, fps, art.size());
-
-	writer << art;
-
-	int frames_processed = 1;
-	int frame_percent = nframes / 100;
-
-	while (true)
-	{
-		cap >> pic;
-		if (pic.empty())
-			break;
-
-		writer << create_art<T>(pic, charmap);
-
-		if (++frames_processed % (frame_percent * 10) == 0)
-			std::cout << frames_processed << '/' << nframes << " frames processed\n";
-	}
-
-	std::cout << "All frames processed\n";
-}
-
-template <typename T>
-auto convert_image(const std::string& infile, const std::string& outfile, const Charmap<T>& charmap) -> void
-{
-	auto pic = cv::imread(infile);
-	cv::imwrite(outfile, create_art<T>(pic, charmap));
-}
+#include "Art.h"
 
 int main(int argc, char* argv[])
 {
 	using namespace std::literals;
-	using color_t = rgb_t<float>;
+	using color_t = lab_t<float>;
+	constexpr auto ascii_grayscale = " .:-=+*#%@";
 
-	if (argc >= 2 && argv[1] == "--help"s)
+#pragma region parser_setup
+	CLI::App app{
+		"Convert images and videos to ascii-art!\nhttps://github.com/JoshuaJakowlew/aart"s,
+		"Aart"s
+	};
+
+	std::string charmap_path;
+	app.add_option("--chr,--charmap"s, charmap_path, "Path to the character map"s)->check(CLI::ExistingFile);
+
+	std::string colormap_path;
+	app.add_option("--clr,--colormap"s, colormap_path, "Path to the color map"s)->check(CLI::ExistingFile);
+
+	std::string input_path;
+	app.add_option("-i,--input"s, input_path, "Path to the input file"s)->check(CLI::ExistingFile);
+
+	std::string output_path;
+	app.add_option("-o,--output"s, output_path, "Path to the output file"s);
+
+	int conv_mode{ 0 };
+	app.add_flag("--img{0},--vid{1}"s, conv_mode, "Conversion mode [--img] for images, [--vid] for videos, [--img] if not specified"s);
+
+	bool use_cuda{ false };
+	app.add_flag("--cuda,!--no-cuda"s, use_cuda, "Use CUDA GPU acceleration (if possible). Better boost can be seen on videos, [--no-cuda] if not specified"s);
+#pragma endregion parser_setup
+
+#pragma region parsing_input
+	try
 	{
-		std::cout << "Usage: aart charmap colormap mode [-p for picture, -v for video] input output\n"
-				  << "Example: aart charmap.png colormap.png -p image.png art.png\n";
+		app.parse(argc, argv);
 	}
-	else if (argc == 6)
+	catch (const CLI::ParseError& e)
 	{
-		const auto charmap = Charmap<color_t>{
-		cv::imread(argv[1], cv::IMREAD_COLOR),
-		cv::imread(argv[2], cv::IMREAD_COLOR),
-		" .:-=+*#%@"s
-		};
+		return app.exit(e);
+	}
 
-		const auto mode = argv[3];
-		if (mode == "-p"s)
+	if (charmap_path == ""s || colormap_path == ""s || input_path == ""s || output_path == ""s)
+	{
+		std::cout << "Invalid input parameters.\nRun with --help for more information.\n";
+		return EXIT_FAILURE;
+	}
+#pragma endregion parsing_input
+
+	try
+	{
+		std::cout << "Conversion mode: " << (conv_mode == 0 ? "image" : "video")
+				  << "\nUse CUDA: " << (use_cuda ? "yes" : "no")
+				  << '\n';
+
+		std::chrono::high_resolution_clock clock;
+		auto start = clock.now();
+
+		const auto cpu_charmap = cv::imread(charmap_path, cv::IMREAD_COLOR);
+		const auto cpu_colormap = cv::imread(colormap_path, cv::IMREAD_COLOR);
+
+		if (use_cuda)
 		{
-			std::cout << "Converting picture " << argv[4] << " to ascii art!"s;
-			convert_image<color_t>(argv[4], argv[5], charmap);
-		}
-		else if (mode == "-v"s)
-		{
-			std::cout << "Converting video " << argv[4] << " to ascii art!\nPlease, wait. Video conversion can take a lot of time\n"s;
-			convert_video<color_t>(argv[4], argv[5], charmap);
+			cv::cuda::GpuMat gpu_charmap;
+			cv::cuda::GpuMat gpu_colormap;
+
+			gpu_charmap.upload(cpu_charmap);
+			gpu_colormap.upload(cpu_colormap);
+
+			const auto charmap = cuda::Charmap<color_t>{
+				gpu_charmap,
+				gpu_colormap,
+				ascii_grayscale
+			};
+
+			if (conv_mode == 0)
+			{
+				cuda::convert_image<color_t>(input_path, output_path, charmap);
+			}
+			else if (conv_mode == 1)
+			{
+				cuda::convert_video<color_t>(input_path, output_path, charmap);
+			}
 		}
 		else
 		{
-			std::cout << "Error: wrong input, try use --help\n"s;
+			const auto charmap = Charmap<color_t>{
+				cpu_charmap,
+				cpu_colormap,
+				ascii_grayscale
+			};
+
+			if (conv_mode == 0)
+			{
+				convert_image<color_t>(input_path, output_path, charmap);
+			}
+			else if (conv_mode == 1)
+			{
+				convert_video<color_t>(input_path, output_path, charmap);
+			}
 		}
+
+		auto end = clock.now();
+		auto duration = std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
+		
+		std::cout << "Elapsed time: " << duration << "s\n";
 	}
-	else
+	catch (const std::exception& e)
 	{
-		std::cout << "Error: wrong input, try use --help\n"s;
+		std::cerr << e.what() << '\n';
+		return EXIT_FAILURE;
+	}
+	catch (const cv::Exception & e)
+	{
+		std::cerr << e.what() << '\n';
+		return EXIT_FAILURE;
+	}
+	catch (...)
+	{
+		std::cerr << "Unknown error\n";
+		return EXIT_FAILURE;
 	}
 }

@@ -8,6 +8,7 @@ struct rgb_t
 {
 	using value_type = T;
 
+	constexpr rgb_t() noexcept = default;
 	constexpr rgb_t(T r, T g, T b) noexcept :
 		r{ r },
 		g{ g },
@@ -56,6 +57,7 @@ struct lab_t
 {
 	using value_type = T;
 
+	constexpr lab_t() noexcept = default;
 	constexpr lab_t(T l, T a, T b) noexcept :
 		l{ l },
 		a{ a },
@@ -102,7 +104,8 @@ namespace cv {
 template <typename T>
 [[noreturn]] auto inline convertTo(const cv::Mat& img) noexcept -> cv::Mat
 {
-	static_assert(false, "Unsupported color type");
+	//static_assert(false, "Unsupported color type");
+	std::cout << "Shit happens\n";
 }
 
 template <>
@@ -122,7 +125,7 @@ template <>
 {
 	cv::Mat result;
 	img.convertTo(result, CV_32FC3);
-	result /= 256.f; // normalize
+	result /= 255.f; // normalize
 	return result;
 }
 
@@ -131,7 +134,7 @@ template <>
 {
 	cv::Mat result;
 	img.convertTo(result, CV_64FC3);
-	result /= 256.0; // normalize
+	result /= 255.0; // normalize
 	return result;
 }
 
@@ -140,7 +143,7 @@ template <>
 {
 	cv::Mat result;
 	img.convertTo(result, CV_32FC3);
-	result /= 256.f; // normalize
+	result /= 255.f; // normalize
 	cv::cvtColor(std::move(result), result, cv::COLOR_BGR2Lab);
 	return result;
 }
@@ -150,9 +153,39 @@ template <>
 {
 	cv::Mat result;
 	img.convertTo(result, CV_64FC3);
-	result /= 256.0; // normalize
+	result /= 255.0; // normalize
 	cv::cvtColor(std::move(result), result, cv::COLOR_BGR2Lab);
 	return result;
+}
+
+template <typename D, typename I = int>
+struct SimilarColors
+{
+	D bg_delta{};
+	D fg_delta{};
+	I bg_index{};
+	I fg_index{};
+};
+
+#include "cuda_kernels.h"
+
+namespace cuda {
+	template <typename T>
+	[[noreturn]] auto inline convertTo(const cv::cuda::GpuMat& img) noexcept -> cv::cuda::GpuMat
+	{
+		//static_assert(false, "Unsupported color type");
+		std::cout << "Shit happens\n";
+	}
+
+	template <>
+	[[nodiscard]] auto inline convertTo<lab_t<float>>(const cv::cuda::GpuMat& img) noexcept -> cv::cuda::GpuMat
+	{
+		cv::cuda::GpuMat result;
+		img.convertTo(result, CV_32FC3);
+		cuda::divide(result, 255.f); // normalize
+		cv::cuda::cvtColor(std::move(result), result, cv::COLOR_BGR2Lab);
+		return result;
+	}
 }
 
 #endif
