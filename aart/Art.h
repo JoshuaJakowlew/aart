@@ -61,7 +61,7 @@ auto convert_video(const std::string& infile, const std::string& outfile, const 
 
 		writer << create_art<T>(pic, charmap);
 
-		if (++frames_processed % (frame_percent * 10) == 0)
+		if (++frames_processed % (frame_percent * 5) == 0)
 			std::cout << frames_processed << '/' << nframes << " frames processed\n";
 	}
 
@@ -90,8 +90,12 @@ namespace cuda {
 
 		auto art = cv::cuda::GpuMat(pich * cellh, picw * cellw, charmap.type());
 
-		auto colors = charmap.getCells(pic);
-		copy_symbols(art, charmap.m_charmap, std::move(colors), picw, pich, charmap.m_cellw, charmap.m_cellh, charmap.m_colormap.cols, charmap.m_nchars);
+		auto colors = similar2_CIE76_compare(pic, charmap.colormap());
+		copy_symbols(
+			art, charmap.charmap(), std::move(colors),
+			picw, pich, charmap.cellW(), charmap.cellH(),
+			charmap.ncolors(), charmap.nchars()
+		);
 
 		return art;
 	}

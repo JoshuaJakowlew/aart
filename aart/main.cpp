@@ -31,17 +31,17 @@ int main(int argc, char* argv[])
 		" .:-=+*#%@"s
 	};
 
-	constexpr auto runs = 200;
+	constexpr auto runs = 1;
 	std::chrono::high_resolution_clock clock;
 	std::vector<size_t> run_time;
 	run_time.reserve(runs);
 	for (int i = 1; i <= runs; ++i)
 	{
 		auto start = clock.now();
-		//cuda::convert_video<color_t>("test.mp4", "out.mp4", charmap_);
+		cuda::convert_video<color_t>("test.mp4", "out.mp4", charmap_);
 		//convert_video<color_t>("test.mp4", "out.mp4", charmap__);
 		//cuda::convert_image<color_t>("test.jpg", "out.png", charmap_);
-		convert_image<color_t>("test.jpg", "out.png", charmap__);
+		//convert_image<color_t>("test.jpg", "out.png", charmap__);
 		auto end = clock.now();
 		auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 		run_time.emplace_back(duration);

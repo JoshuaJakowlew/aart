@@ -142,30 +142,47 @@ namespace cuda {
 		{
 			return m_charmap.type();
 		}
+
+		[[nodiscard]] inline auto charmap() const noexcept -> const cv::cuda::GpuMat&
+		{
+			return m_charmap;
+		}
+
+		[[nodiscard]] inline auto colormap() const noexcept -> const cv::cuda::GpuMat&
+		{
+			return m_colormap;
+		}
+
+		[[nodiscard]] inline auto chars() const noexcept
+		{
+			return m_chars;
+		}
+
+		[[nodiscard]] inline auto nchars() const noexcept
+		{
+			return m_nchars;
+		}
+
+		[[nodiscard]] inline auto ncolors() const noexcept
+		{
+			return m_ncolors;
+		}
 #pragma endregion getters
 
-		[[nodiscard]] auto getCells(const cv::cuda::GpuMat& picture) const noexcept;
-
-	//private:
+	private:
 #pragma region members
 		cv::cuda::GpuMat m_charmap;
 		cv::cuda::GpuMat m_colormap;
 		const std::string m_chars;
 
 		const int m_nchars = m_chars.length();
-		const int m_ncolors = m_colormap.size().width;
+		const int m_ncolors = m_colormap.cols;
 
 		const int m_cellw = m_charmap.size().width / m_nchars;
 		const int m_cellh = m_charmap.size().height / (m_ncolors * m_ncolors);
 		const int m_ncells = m_nchars * m_ncolors * m_ncolors;
 #pragma endregion members
 	};
-
-	template <typename T>
-	[[nodiscard]] auto Charmap<T>::getCells(const cv::cuda::GpuMat& picture) const noexcept
-	{
-		return similar2_CIE76_compare(picture, m_colormap);
-	}
 }
 
 #endif
