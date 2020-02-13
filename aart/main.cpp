@@ -10,7 +10,9 @@ int main(int argc, char* argv[])
 {
 	using namespace std::literals;
 	using color_t = lab_t<float>;
+	constexpr auto ascii_grayscale = " .:-=+*#%@";
 
+#pragma region parser_setup
 	CLI::App app{
 		"Convert images and videos to ascii-art!\nhttps://github.com/JoshuaJakowlew/aart"s,
 		"Aart"s
@@ -33,7 +35,9 @@ int main(int argc, char* argv[])
 
 	bool use_cuda{ false };
 	app.add_flag("--cuda,!--no-cuda"s, use_cuda, "Use CUDA GPU acceleration (if possible). Better boost can be seen on videos, [--no-cuda] if not specified"s);
+#pragma endregion parser_setup
 
+#pragma region parsing_input
 	try
 	{
 		app.parse(argc, argv);
@@ -48,6 +52,7 @@ int main(int argc, char* argv[])
 		std::cout << "Invalid input parameters.\nRun with --help for more information.\n";
 		return EXIT_FAILURE;
 	}
+#pragma endregion parsing_input
 
 	try
 	{
@@ -72,7 +77,7 @@ int main(int argc, char* argv[])
 			const auto charmap = cuda::Charmap<color_t>{
 				gpu_charmap,
 				gpu_colormap,
-				" .:-=+*#%@"s
+				ascii_grayscale
 			};
 
 			if (conv_mode == 0)
@@ -89,7 +94,7 @@ int main(int argc, char* argv[])
 			const auto charmap = Charmap<color_t>{
 				cpu_charmap,
 				cpu_colormap,
-				" .:-=+*#%@"s
+				ascii_grayscale
 			};
 
 			if (conv_mode == 0)
@@ -104,7 +109,7 @@ int main(int argc, char* argv[])
 
 		auto end = clock.now();
 		auto duration = std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
-
+		
 		std::cout << "Elapsed time: " << duration << "s\n";
 	}
 	catch (const std::exception& e)
