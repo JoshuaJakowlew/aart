@@ -2,7 +2,6 @@
 #define CUDA_KERNELS_H
 
 #include <memory>
-#include <functional>
 
 namespace cuda {
 	using similar_t = SimilarColors<float>;

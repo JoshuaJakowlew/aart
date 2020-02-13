@@ -4,7 +4,6 @@
 #include <opencv2/opencv.hpp>
 
 #include "Art.h"
-#include "cuda_kernels.h"
 
 int main(int argc, char* argv[])
 {
