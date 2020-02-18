@@ -175,7 +175,7 @@ template <>
 {
 	cv::cuda::GpuMat result;
 	img.convertTo(result, CV_32FC3);
-	divide(result, 255.f); // normalize
+	cuda_divide(result, 255.f); // normalize
 	cv::cuda::cvtColor(std::move(result), result, cv::COLOR_BGR2Lab);
 	return result;
 }

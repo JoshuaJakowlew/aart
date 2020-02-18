@@ -8,63 +8,6 @@
 template <typename T>
 using matptr_t = cv::cuda::PtrStepSz<T>;
 
-__device__ inline float CIE76_compare_(const lab_t<float>* x, const lab_t<float>* y);
-
-__global__ void similar2_CIE76_compare_(const matptr_t<lab_t<float>> picture, const matptr_t<lab_t<float>> colormap, similar_t* similar);
-
-__global__ void copy_symbols_(matptr_t<rgb_t<uint8_t>> picture,
-    const matptr_t<rgb_t<uint8_t>> charmap,
-    const similar_t* colors, int w, int h, int cellW, int cellH, int nColors, int nChars);
-
-__global__ void divide_(matptr_t<lab_t<float>> mat, float val);
-
-
-[[nodiscard]] auto similar2_CIE76_compare(const cv::cuda::GpuMat& picture, const cv::cuda::GpuMat& colormap) -> similarptr_t
-{
-    dim3 cthreads{ 16, 16 };
-    dim3 cblocks{
-            static_cast<unsigned>(std::ceil(picture.size().width /
-                static_cast<double>(cthreads.x))),
-            static_cast<unsigned>(std::ceil(picture.size().height /
-                static_cast<double>(cthreads.y)))
-        };
-
-    similar_t* gpu_similar;
-    cudaMalloc(&gpu_similar, sizeof(similar_t) * picture.rows * picture.cols);
-    similar2_CIE76_compare_<<<cblocks, cthreads>>>(picture, colormap, gpu_similar);
-
-    return similarptr_t{ gpu_similar, [](similar_t* similar) noexcept { cudaFree(similar); } };
-}
-
-[[nodiscard]] auto copy_symbols(cv::cuda::GpuMat& art, const cv::cuda::GpuMat& charmap,
-const similarptr_t colors, int w, int h, int cellW, int cellH, int nColors, int nChars) -> void
-{
-    dim3 cthreads{ 16, 16 };
-    dim3 cblocks{
-        static_cast<unsigned>(std::ceil(w /
-            static_cast<double>(cthreads.x))),
-        static_cast<unsigned>(std::ceil(h /
-            static_cast<double>(cthreads.y)))
-    };
-
-    copy_symbols_<<<cblocks, cthreads>>>(art, charmap, colors.get(), w, h, cellW, cellH, nColors, nChars);
-    auto error = cudaGetLastError();
-}
-
-auto divide(cv::cuda::GpuMat& mat, float x) -> void
-{
-    dim3 cthreads{ 16, 16 };
-    dim3 cblocks{
-        static_cast<unsigned>(std::ceil(mat.size().width /
-            static_cast<double>(cthreads.x))),
-        static_cast<unsigned>(std::ceil(mat.size().height /
-            static_cast<double>(cthreads.y)))
-    };
-
-    divide_<<<cblocks, cthreads>>>(mat, x);
-}
-
-
 __device__ inline float CIE76_compare_(const lab_t<float>* x, const lab_t<float>* y)
 {
     return (x->l - y->l) * (x->l - y->l) + (x->a - y->a) * (x->a - y->a) + (x->b - y->b) * (x->b - y->b);
@@ -157,4 +100,51 @@ __global__ void divide_(matptr_t<lab_t<float>> mat, float val)
         color.b = __fdividef(color.b, val);
         mat(y, x) = color;
     }
+}
+
+
+
+[[nodiscard]] auto similar2_CIE76_compare(const cv::cuda::GpuMat& picture, const cv::cuda::GpuMat& colormap) -> similarptr_t
+{
+    dim3 cthreads{ 16, 16 };
+    dim3 cblocks{
+            static_cast<unsigned>(std::ceil(picture.size().width /
+                static_cast<double>(cthreads.x))),
+            static_cast<unsigned>(std::ceil(picture.size().height /
+                static_cast<double>(cthreads.y)))
+    };
+
+    similar_t* gpu_similar;
+    cudaMalloc(&gpu_similar, sizeof(similar_t)* picture.rows* picture.cols);
+    similar2_CIE76_compare_ << <cblocks, cthreads >> > (picture, colormap, gpu_similar);
+
+    return similarptr_t{ gpu_similar, [](similar_t* similar) noexcept { cudaFree(similar); } };
+}
+
+[[nodiscard]] auto copy_symbols(cv::cuda::GpuMat& art, const cv::cuda::GpuMat& charmap,
+    const similarptr_t colors, int w, int h, int cellW, int cellH, int nColors, int nChars) -> void
+{
+    dim3 cthreads{ 16, 16 };
+    dim3 cblocks{
+        static_cast<unsigned>(std::ceil(w /
+            static_cast<double>(cthreads.x))),
+        static_cast<unsigned>(std::ceil(h /
+            static_cast<double>(cthreads.y)))
+    };
+
+    copy_symbols_ << <cblocks, cthreads >> > (art, charmap, colors.get(), w, h, cellW, cellH, nColors, nChars);
+    auto error = cudaGetLastError();
+}
+
+auto cuda_divide(cv::cuda::GpuMat& mat, float x) -> void
+{
+    dim3 cthreads{ 16, 16 };
+    dim3 cblocks{
+        static_cast<unsigned>(std::ceil(mat.size().width /
+            static_cast<double>(cthreads.x))),
+        static_cast<unsigned>(std::ceil(mat.size().height /
+            static_cast<double>(cthreads.y)))
+    };
+
+    divide_ << <cblocks, cthreads >> > (mat, x);
 }

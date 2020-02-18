@@ -5,13 +5,13 @@
 #include "launch_type.h"
 
 template <typename T, launch_t>
-class Charmap {};
+class ñharmap_t {};
 
 template <typename T>
-class Charmap<T, launch_t::cpu>
+class ñharmap_t<T, launch_t::cpu>
 {
 public:
-	Charmap(cv::Mat charmap, cv::Mat colormap, std::string chars) :
+	ñharmap_t(cv::Mat charmap, cv::Mat colormap, std::string chars) :
 		m_charmap{ std::move(charmap) },
 		m_colormap{ convertTo<T>(std::move(colormap)) },
 		m_chars{ std::move(chars) }
@@ -62,7 +62,7 @@ private:
 
 template <typename T>
 template <typename F>
-[[nodiscard]] auto Charmap<T, launch_t::cpu>::getCell(const T& color, F distance) const noexcept -> cv::Mat
+[[nodiscard]] auto ñharmap_t<T, launch_t::cpu>::getCell(const T& color, F distance) const noexcept -> cv::Mat
 {
 	const auto colors = similar2(color, distance);
 
@@ -80,7 +80,7 @@ template <typename F>
 
 template <typename T>
 template <typename D>
-[[nodiscard]] auto Charmap<T, launch_t::cpu>::similar2(const T& goal, D(*distance)(const T&, const T&)) const noexcept -> SimilarColors<D>
+[[nodiscard]] auto ñharmap_t<T, launch_t::cpu>::similar2(const T& goal, D(*distance)(const T&, const T&)) const noexcept -> SimilarColors<D>
 {
 	const auto start_color = m_colormap.begin<T>();
 	auto delta1 = distance(goal, *start_color);
@@ -116,10 +116,10 @@ template <typename D>
 }
 
 template <typename T>
-class Charmap<T, launch_t::cuda>
+class ñharmap_t<T, launch_t::cuda>
 {
 public:
-	Charmap(cv::cuda::GpuMat charmap, cv::cuda::GpuMat colormap, std::string chars) :
+	ñharmap_t(cv::cuda::GpuMat charmap, cv::cuda::GpuMat colormap, std::string chars) :
 		m_charmap{ std::move(charmap) },
 		m_colormap{ convertTo<T>(std::move(colormap)) },
 		m_chars{ std::move(chars) }

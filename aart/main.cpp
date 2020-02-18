@@ -75,7 +75,7 @@ int main(int argc, char* argv[])
 			gpu_charmap.upload(cpu_charmap);
 			gpu_colormap.upload(cpu_colormap);
 
-			const auto charmap = cuda::Charmap<color_t>{
+			const auto charmap = cuda::ñharmap_t<color_t>{
 				gpu_charmap,
 				gpu_colormap,
 				ascii_grayscale
@@ -92,7 +92,7 @@ int main(int argc, char* argv[])
 		}
 		else
 		{
-			const auto charmap = Charmap<color_t>{
+			const auto charmap = ñharmap_t<color_t>{
 				cpu_charmap,
 				cpu_colormap,
 				ascii_grayscale
@@ -139,7 +139,7 @@ int main(int argc, char* argv[])
 	gpu_charmap.upload(cpu_charmap);
 	gpu_colormap.upload(cpu_colormap);
 	
-	const auto charmap = Charmap<color_t, launch_t::cuda>{
+	const auto charmap = ñharmap_t<color_t, launch_t::cuda>{
 		gpu_charmap,
 		gpu_colormap,
 		ascii_grayscale
