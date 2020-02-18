@@ -35,6 +35,9 @@
     <ClInclude Include="cuda_kernels.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="launch_type.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="cuda_kernels.cu">

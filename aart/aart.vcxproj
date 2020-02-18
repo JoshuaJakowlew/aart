@@ -172,6 +172,7 @@
     <ClInclude Include="Colors.h" />
     <ClInclude Include="Comparators.h" />
     <ClInclude Include="cuda_kernels.h" />
+    <ClInclude Include="launch_type.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

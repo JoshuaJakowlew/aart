@@ -12,6 +12,7 @@ int main(int argc, char* argv[])
 	using color_t = lab_t<float>;
 	constexpr auto ascii_grayscale = " .:-=+*#%@";
 
+/*
 #pragma region parser_setup
 	CLI::App app{
 		"Convert images and videos to ascii-art!\nhttps://github.com/JoshuaJakowlew/aart"s,
@@ -127,4 +128,22 @@ int main(int argc, char* argv[])
 		std::cerr << "Unknown error\n";
 		return EXIT_FAILURE;
 	}
+*/
+
+	const auto cpu_charmap = cv::imread("charmap.png", cv::IMREAD_COLOR);
+	const auto cpu_colormap = cv::imread("colormap.png", cv::IMREAD_COLOR);
+
+	cv::cuda::GpuMat gpu_charmap;
+	cv::cuda::GpuMat gpu_colormap;
+	
+	gpu_charmap.upload(cpu_charmap);
+	gpu_colormap.upload(cpu_colormap);
+	
+	const auto charmap = Charmap<color_t, launch_t::cuda>{
+		gpu_charmap,
+		gpu_colormap,
+		ascii_grayscale
+	};
+	
+	convert_video<color_t>("test.mp4", "out.mp4", charmap);
 }

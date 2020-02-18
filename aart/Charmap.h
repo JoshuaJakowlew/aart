@@ -2,9 +2,13 @@
 #define CHARMAP_H
 
 #include "Colors.h"
+#include "launch_type.h"
+
+template <typename T, launch_t>
+class Charmap {};
 
 template <typename T>
-class Charmap
+class Charmap<T, launch_t::cpu>
 {
 public:
 	Charmap(cv::Mat charmap, cv::Mat colormap, std::string chars) :
@@ -58,7 +62,7 @@ private:
 
 template <typename T>
 template <typename F>
-[[nodiscard]] auto Charmap<T>::getCell(const T& color, F distance) const noexcept -> cv::Mat
+[[nodiscard]] auto Charmap<T, launch_t::cpu>::getCell(const T& color, F distance) const noexcept -> cv::Mat
 {
 	const auto colors = similar2(color, distance);
 
@@ -76,7 +80,7 @@ template <typename F>
 
 template <typename T>
 template <typename D>
-[[nodiscard]] auto Charmap<T>::similar2(const T& goal, D(*distance)(const T&, const T&)) const noexcept -> SimilarColors<D>
+[[nodiscard]] auto Charmap<T, launch_t::cpu>::similar2(const T& goal, D(*distance)(const T&, const T&)) const noexcept -> SimilarColors<D>
 {
 	const auto start_color = m_colormap.begin<T>();
 	auto delta1 = distance(goal, *start_color);
@@ -111,78 +115,76 @@ template <typename D>
 	};
 }
 
-namespace cuda {
-	template <typename T>
-	class Charmap
-	{
-	public:
-		Charmap(cv::cuda::GpuMat charmap, cv::cuda::GpuMat colormap, std::string chars) :
-			m_charmap{ std::move(charmap) },
-			m_colormap{ convertTo<T>(std::move(colormap)) },
-			m_chars{ std::move(chars) }
-		{}
+template <typename T>
+class Charmap<T, launch_t::cuda>
+{
+public:
+	Charmap(cv::cuda::GpuMat charmap, cv::cuda::GpuMat colormap, std::string chars) :
+		m_charmap{ std::move(charmap) },
+		m_colormap{ convertTo<T>(std::move(colormap)) },
+		m_chars{ std::move(chars) }
+	{}
 
 #pragma region getters
-		[[nodiscard]] inline auto cellW() const noexcept
-		{
-			return m_cellw;
-		}
+	[[nodiscard]] inline auto cellW() const noexcept
+	{
+		return m_cellw;
+	}
 
-		[[nodiscard]] inline auto cellH() const noexcept
-		{
-			return m_cellh;
-		}
+	[[nodiscard]] inline auto cellH() const noexcept
+	{
+		return m_cellh;
+	}
 
-		[[nodiscard]] inline auto size() const noexcept
-		{
-			return m_ncells;
-		}
+	[[nodiscard]] inline auto size() const noexcept
+	{
+		return m_ncells;
+	}
 
-		[[nodiscard]] inline auto type() const noexcept
-		{
-			return m_charmap.type();
-		}
+	[[nodiscard]] inline auto type() const noexcept
+	{
+		return m_charmap.type();
+	}
 
-		[[nodiscard]] inline auto charmap() const noexcept -> const cv::cuda::GpuMat&
-		{
-			return m_charmap;
-		}
+	[[nodiscard]] inline auto charmap() const noexcept -> const cv::cuda::GpuMat&
+	{
+		return m_charmap;
+	}
 
-		[[nodiscard]] inline auto colormap() const noexcept -> const cv::cuda::GpuMat&
-		{
-			return m_colormap;
-		}
+	[[nodiscard]] inline auto colormap() const noexcept -> const cv::cuda::GpuMat&
+	{
+		return m_colormap;
+	}
 
-		[[nodiscard]] inline auto chars() const noexcept
-		{
-			return m_chars;
-		}
+	[[nodiscard]] inline auto chars() const noexcept
+	{
+		return m_chars;
+	}
 
-		[[nodiscard]] inline auto nchars() const noexcept
-		{
-			return m_nchars;
-		}
+	[[nodiscard]] inline auto nchars() const noexcept
+	{
+		return m_nchars;
+	}
 
-		[[nodiscard]] inline auto ncolors() const noexcept
-		{
-			return m_ncolors;
-		}
+	[[nodiscard]] inline auto ncolors() const noexcept
+	{
+		return m_ncolors;
+	}
 #pragma endregion getters
 
-	private:
+private:
 #pragma region members
-		cv::cuda::GpuMat m_charmap;
-		cv::cuda::GpuMat m_colormap;
-		const std::string m_chars;
+	cv::cuda::GpuMat m_charmap;
+	cv::cuda::GpuMat m_colormap;
+	const std::string m_chars;
 
-		const int m_nchars = m_chars.length();
-		const int m_ncolors = m_colormap.cols;
+	const int m_nchars = m_chars.length();
+	const int m_ncolors = m_colormap.cols;
 
-		const int m_cellw = m_charmap.size().width / m_nchars;
-		const int m_cellh = m_charmap.size().height / (m_ncolors * m_ncolors);
-		const int m_ncells = m_nchars * m_ncolors * m_ncolors;
+	const int m_cellw = m_charmap.size().width / m_nchars;
+	const int m_cellh = m_charmap.size().height / (m_ncolors * m_ncolors);
+	const int m_ncells = m_nchars * m_ncolors * m_ncolors;
 #pragma endregion members
-	};
-}
+};
 
 #endif
