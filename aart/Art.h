@@ -6,7 +6,7 @@
 #include "cuda_kernels.h"
 
 template <typename T>
-[[nodiscard]] auto create_art(cv::Mat& pic, const ñharmap_t<T, launch_t::cpu>& charmap) -> cv::Mat
+[[nodiscard]] auto create_art(cv::Mat& pic, const charmap_t<T, launch_t::cpu>& charmap) -> cv::Mat
 {
 	const auto cellw = charmap.cellW();
 	const auto cellh = charmap.cellH();
@@ -35,7 +35,7 @@ template <typename T>
 }
 
 template <typename T>
-auto convert_video(const std::string& infile, const std::string& outfile, const ñharmap_t<T, launch_t::cpu>& charmap) -> void
+auto convert_video(const std::string& infile, const std::string& outfile, const charmap_t<T, launch_t::cpu>& charmap) -> void
 {
 	auto cap = cv::VideoCapture(infile, cv::CAP_FFMPEG);
 	const int nframes = cap.get(cv::VideoCaptureProperties::CAP_PROP_FRAME_COUNT);
@@ -69,14 +69,14 @@ auto convert_video(const std::string& infile, const std::string& outfile, const 
 }
 
 template <typename T>
-auto convert_image(const std::string& infile, const std::string& outfile, const ñharmap_t<T, launch_t::cpu>& charmap) -> void
+auto convert_image(const std::string& infile, const std::string& outfile, const charmap_t<T, launch_t::cpu>& charmap) -> void
 {
 	auto pic = cv::imread(infile);
 	cv::imwrite(outfile, create_art<T>(pic, charmap));
 }
 
 template <typename T>
-[[nodiscard]] auto create_art(cv::cuda::GpuMat& pic, const ñharmap_t<T, launch_t::cuda>& charmap) -> cv::cuda::GpuMat
+[[nodiscard]] auto create_art(cv::cuda::GpuMat& pic, const charmap_t<T, launch_t::cuda>& charmap) -> cv::cuda::GpuMat
 {
 	const auto cellw = charmap.cellW();
 	const auto cellh = charmap.cellH();
@@ -100,7 +100,7 @@ template <typename T>
 }
 
 template <typename T>
-auto convert_image(const std::string& infile, const std::string& outfile, const ñharmap_t<T, launch_t::cuda>& charmap) -> void
+auto convert_image(const std::string& infile, const std::string& outfile, const charmap_t<T, launch_t::cuda>& charmap) -> void
 {
 	auto pic = cv::imread(infile);
 
@@ -114,7 +114,7 @@ auto convert_image(const std::string& infile, const std::string& outfile, const 
 }
 
 template <typename T>
-auto convert_video(const std::string& infile, const std::string& outfile, const ñharmap_t<T, launch_t::cuda>& charmap) -> void
+auto convert_video(const std::string& infile, const std::string& outfile, const charmap_t<T, launch_t::cuda>& charmap) -> void
 {
 	auto cap = cv::VideoCapture(infile, cv::CAP_FFMPEG);
 	const int nframes = cap.get(cv::VideoCaptureProperties::CAP_PROP_FRAME_COUNT);
