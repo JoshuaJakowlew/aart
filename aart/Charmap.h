@@ -13,7 +13,7 @@ class ñharmap_t<T, launch_t::cpu>
 public:
 	ñharmap_t(cv::Mat charmap, cv::Mat colormap, std::string chars) :
 		m_charmap{ std::move(charmap) },
-		m_colormap{ convertTo<T>(std::move(colormap)) },
+		m_colormap{ convert_to<T>(std::move(colormap)) },
 		m_chars{ std::move(chars) }
 	{}
 
@@ -121,7 +121,7 @@ class ñharmap_t<T, launch_t::cuda>
 public:
 	ñharmap_t(cv::cuda::GpuMat charmap, cv::cuda::GpuMat colormap, std::string chars) :
 		m_charmap{ std::move(charmap) },
-		m_colormap{ convertTo<T>(std::move(colormap)) },
+		m_colormap{ convert_to<T>(std::move(colormap)) },
 		m_chars{ std::move(chars) }
 	{}
 

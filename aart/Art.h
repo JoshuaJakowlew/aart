@@ -12,7 +12,7 @@ template <typename T>
 	const auto cellh = charmap.cellH();
 
 	cv::resize(pic, pic, {}, 1.0, (double)cellw / cellh, cv::INTER_LINEAR);
-	pic = convertTo<T>(pic);
+	pic = convert_to<T>(pic);
 
 	const auto picw = pic.size().width;
 	const auto pich = pic.size().height;
@@ -82,7 +82,7 @@ template <typename T>
 	const auto cellh = charmap.cellH();
 
 	cv::cuda::resize(pic, pic, {}, 1.0, (double)cellw / cellh, cv::INTER_LINEAR);
-	pic = convertTo<T>(pic);
+	pic = convert_to<T>(pic);
 
 	const auto picw = pic.size().width;
 	const auto pich = pic.size().height;
