@@ -1,7 +1,7 @@
 #ifndef CHARMAP_H
 #define CHARMAP_H
 
-#include "Colors.h"
+#include "colors.h"
 #include "launch_type.h"
 
 template <typename T, launch_t>

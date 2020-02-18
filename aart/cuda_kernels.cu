@@ -2,7 +2,7 @@
 #include <cuda_runtime.h>
 #include <opencv2/core/cuda.hpp>
 
-#include "Colors.h"
+#include "colors.h"
 #include "cuda_kernels.h"
 
 template <typename T>

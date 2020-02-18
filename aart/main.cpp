@@ -4,7 +4,7 @@
 #include <opencv2/opencv.hpp>
 #include <CLI11.hpp>
 
-#include "Art.h"
+#include "art.h"
 
 int main(int argc, char* argv[])
 {

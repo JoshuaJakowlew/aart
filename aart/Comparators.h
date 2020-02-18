@@ -1,7 +1,7 @@
 #ifndef COMPARATORS_H
 #define COMPARATORS_H
 
-#include "Colors.h"
+#include "colors.h"
 
 [[nodiscard]] inline auto CIE76_distance(const lab_t<float>& x, const lab_t<float>& y) noexcept -> float
 {

@@ -1,8 +1,8 @@
 #ifndef ART_H
 #define ART_H
 
-#include "Charmap.h"
-#include "Comparators.h"
+#include "charmap.h"
+#include "comparators.h"
 #include "cuda_kernels.h"
 
 template <typename T>

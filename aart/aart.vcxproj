@@ -167,10 +167,10 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Art.h" />
-    <ClInclude Include="Charmap.h" />
-    <ClInclude Include="Colors.h" />
-    <ClInclude Include="Comparators.h" />
+    <ClInclude Include="art.h" />
+    <ClInclude Include="charmap.h" />
+    <ClInclude Include="colors.h" />
+    <ClInclude Include="comparators.h" />
     <ClInclude Include="cuda_kernels.h" />
     <ClInclude Include="launch_type.h" />
   </ItemGroup>
