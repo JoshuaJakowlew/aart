@@ -32,7 +32,7 @@
 	constexpr auto K1 = 0.045f;
 	constexpr auto K2 = 0.015f;
 
-	const auto SL = 1.f;
+	constexpr auto SL = 1.f;
 	const auto SC = 1.f + K1 * C1;
 	const auto SH = 1.f + K2 * C1;
 

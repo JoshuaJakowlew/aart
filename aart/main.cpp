@@ -139,11 +139,11 @@ int main(int argc, char* argv[])
 	gpu_charmap.upload(cpu_charmap);
 	gpu_colormap.upload(cpu_colormap);
 	
-	const auto charmap = charmap_t<color_t, launch_t::cpu>{
-		cpu_charmap,
-		cpu_colormap,
+	const auto charmap = charmap_t<color_t, launch_t::cuda>{
+		gpu_charmap,
+		gpu_colormap,
 		ascii_grayscale
 	};
 	
-	convert_image<color_t>("test.jpg", "out.png", charmap);
+	convert_image<color_t>("test.jpg", "out1.png", charmap);
 }

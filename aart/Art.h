@@ -89,7 +89,7 @@ template <typename T>
 
 	auto art = cv::cuda::GpuMat(pich * cellh, picw * cellw, charmap.type());
 
-	auto colors = similar2_CIE76_compare(pic, charmap.colormap());
+	auto colors = similar2_CIE94(pic, charmap.colormap());
 	copy_symbols(
 		art, charmap.charmap(), std::move(colors),
 		picw, pich, charmap.cellW(), charmap.cellH(),

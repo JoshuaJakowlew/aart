@@ -10,12 +10,43 @@ using matptr_t = cv::cuda::PtrStepSz<T>;
 
 // Kernels
 
-__device__ inline float CIE76_compare(const lab_t<float>* x, const lab_t<float>* y)
+__device__ float CIE76_compare(const lab_t<float>* x, const lab_t<float>* y)
 {
     return (x->l - y->l) * (x->l - y->l) + (x->a - y->a) * (x->a - y->a) + (x->b - y->b) * (x->b - y->b);
 }
 
-__global__ void similar2_CIE76_compare(const matptr_t<lab_t<float>> picture, const matptr_t<lab_t<float>> colormap, similar_t* similar)
+__device__ float CIE94_compare(const lab_t<float>* x, const lab_t<float>* y)
+{
+    const auto dL = x->l - y->l;
+
+    const auto C1 = sqrtf(x->a * x->a + x->b * x->b);
+    const auto C2 = sqrtf(y->a * y->a + y->b * y->b);
+    const auto dC = C1 - C2;
+
+    const auto da = x->a - y->a;
+    const auto db = x->b - y->b;
+
+    auto dH = da * da + db * db - dC * dC;
+    dH = (dH > 0.f) ? sqrt(dH) : 0.f;
+
+    // For graphic arts (acc. to Wikipedia)
+    constexpr auto kL = 1.f;
+    constexpr auto K1 = 0.045f;
+    constexpr auto K2 = 0.015f;
+
+    constexpr auto SL = 1.f;
+    const auto SC = fmaf(K1, C1, 1.f);
+    const auto SH = fmaf(K2, C1, 1.f);
+
+    // Assume that kC and kH are both unity (acc. to Wikipedia)
+    const auto dE_1 = __fdividef(dL, kL * SL);
+    const auto dE_2 = __fdividef(dC, SC);
+    const auto dE_3 = __fdividef(dH, SH);
+    const auto dE = fmaf(dE_1, dE_1, fmaf(dE_2, dE_2, dE_3 * dE_3));
+    return dE;
+}
+
+__global__ void similar2_CIE76(const matptr_t<lab_t<float>> picture, const matptr_t<lab_t<float>> colormap, similar_t* similar)
 {
     const int x = blockIdx.x * blockDim.x + threadIdx.x;
     const int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -55,6 +86,46 @@ __global__ void similar2_CIE76_compare(const matptr_t<lab_t<float>> picture, con
     }
 }
 
+__global__ void similar2_CIE94(const matptr_t<lab_t<float>> picture, const matptr_t<lab_t<float>> colormap, similar_t* similar)
+{
+    const int x = blockIdx.x * blockDim.x + threadIdx.x;
+    const int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (x <= picture.cols - 1 && y <= picture.rows - 1 && y >= 0 && x >= 0)
+    {
+        const auto goal = picture(y, x);
+        const auto start_color = colormap(0, 0);
+        auto delta1 = CIE94_compare(&goal, &start_color);
+        auto delta2 = delta1;
+        auto index1 = 0;
+        auto index2 = index1;
+
+        for (int i = 1; i < colormap.cols; ++i)
+        {
+            const auto color = colormap(0, i);
+            const auto delta = CIE94_compare(&goal, &color);
+
+            if (delta < delta1) {
+                delta2 = delta1;
+                delta1 = delta;
+
+                index2 = index1;
+                index1 = i;
+            }
+            else if (delta < delta2) {
+                delta2 = delta;
+
+                index2 = i;
+            }
+        }
+
+        similar[y * picture.cols + x] = similar_t{
+                 delta1,  delta2,
+                 index1,  index2
+        };
+    }
+}
+
 __global__ void copy_symbols(matptr_t<rgb_t<uint8_t>> picture,
     const matptr_t<rgb_t<uint8_t>> charmap,
     const similar_t* colors, int w, int h, int cellW, int cellH, int nColors, int nChars)
@@ -69,11 +140,11 @@ __global__ void copy_symbols(matptr_t<rgb_t<uint8_t>> picture,
 
         const auto similar = colors[y * w + x];
 
-        /*const int char_pos = similar.fg_delta == 0 ?
+        const int char_pos = similar.fg_delta == 0 ?
             nChars - 1 :
-            similar.bg_delta / similar.fg_delta * (nChars - 1);*/
+            similar.bg_delta / similar.fg_delta * (nChars - 1);
 
-        const int char_pos = __fdividef(fmaf(similar.bg_delta, nChars, -similar.bg_delta), similar.fg_delta);
+        //const int char_pos = __fdividef(fmaf(similar.bg_delta, nChars, -similar.bg_delta), similar.fg_delta);
 
         const auto cell_x = char_pos * cellW;
         const auto cell_y = (similar.bg_index * nColors + similar.fg_index) * cellH;
@@ -83,7 +154,6 @@ __global__ void copy_symbols(matptr_t<rgb_t<uint8_t>> picture,
             for (int xPos = 0; xPos < cellW; ++xPos)
             {
                 picture(art_y + yPos, art_x + xPos) = charmap(cell_y + yPos, cell_x + xPos);
-
             }
         }
     }
@@ -106,7 +176,7 @@ __global__ void divide(matptr_t<lab_t<float>> mat, float val)
 
 // Kernel wrappers
 
-[[nodiscard]] auto similar2_CIE76_compare(const cv::cuda::GpuMat& picture, const cv::cuda::GpuMat& colormap) -> similarptr_t
+[[nodiscard]] auto similar2_CIE76(const cv::cuda::GpuMat& picture, const cv::cuda::GpuMat& colormap) -> similarptr_t
 {
     dim3 cthreads{ 16, 16 };
     dim3 cblocks{
@@ -118,7 +188,24 @@ __global__ void divide(matptr_t<lab_t<float>> mat, float val)
 
     similar_t* gpu_similar;
     cudaMalloc(&gpu_similar, sizeof(similar_t)* picture.rows* picture.cols);
-    similar2_CIE76_compare << <cblocks, cthreads >> > (picture, colormap, gpu_similar);
+    similar2_CIE76<<<cblocks, cthreads>>>(picture, colormap, gpu_similar);
+
+    return similarptr_t{ gpu_similar, [](similar_t* similar) noexcept { cudaFree(similar); } };
+}
+
+[[nodiscard]] auto similar2_CIE94(const cv::cuda::GpuMat& picture, const cv::cuda::GpuMat& colormap) -> similarptr_t
+{
+    dim3 cthreads{ 16, 16 };
+    dim3 cblocks{
+            static_cast<unsigned>(std::ceil(picture.size().width /
+                static_cast<double>(cthreads.x))),
+            static_cast<unsigned>(std::ceil(picture.size().height /
+                static_cast<double>(cthreads.y)))
+    };
+
+    similar_t* gpu_similar;
+    cudaMalloc(&gpu_similar, sizeof(similar_t)* picture.rows* picture.cols);
+    similar2_CIE94<<<cblocks, cthreads >>>(picture, colormap, gpu_similar);
 
     return similarptr_t{ gpu_similar, [](similar_t* similar) noexcept { cudaFree(similar); } };
 }
