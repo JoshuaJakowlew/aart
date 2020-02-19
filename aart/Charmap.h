@@ -17,6 +17,12 @@ public:
 		m_chars{ std::move(chars) }
 	{}
 
+	charmap_t(const std::string& charmap, const std::string& colormap, const std::string chars) :
+		m_charmap{ cv::imread(charmap, cv::IMREAD_COLOR) },
+		m_colormap{ convert_to<T>(cv::imread(colormap, cv::IMREAD_COLOR)) },
+		m_chars{ std::move(chars) }
+	{}
+
 #pragma region getters
 	[[nodiscard]] inline auto cellW() const noexcept
 	{
@@ -122,8 +128,33 @@ public:
 	charmap_t(cv::cuda::GpuMat charmap, cv::cuda::GpuMat colormap, std::string chars) :
 		m_charmap{ std::move(charmap) },
 		m_colormap{ convert_to<T>(std::move(colormap)) },
-		m_chars{ std::move(chars) }
+		m_chars{ std::move(chars) },
+		m_nchars{ m_chars.length() },
+		m_ncolors{ m_colormap.cols },
+		m_cellw{ m_charmap.size().width / m_nchars },
+		m_cellh{ m_charmap.size().height / (m_ncolors * m_ncolors) },
+		m_ncells{ m_nchars * m_ncolors * m_ncolors }
 	{}
+
+	charmap_t(const std::string& charmap, const std::string& colormap, const std::string chars) :
+		m_chars{ std::move(chars) }
+	{
+		const auto cpu_charmap = cv::imread(charmap, cv::IMREAD_COLOR);
+		const auto cpu_colormap = cv::imread(colormap, cv::IMREAD_COLOR);
+
+		m_charmap.upload(cpu_charmap);
+
+		cv::cuda::GpuMat gpu_colormap;
+		gpu_colormap.upload(cpu_colormap);
+		m_colormap = convert_to<T>(gpu_colormap);
+
+		m_nchars = m_chars.length();
+		m_ncolors = m_colormap.cols;
+
+		m_cellw = m_charmap.size().width / m_nchars;
+		m_cellh = m_charmap.size().height / (m_ncolors * m_ncolors);
+		m_ncells = m_nchars * m_ncolors * m_ncolors;
+	}
 
 #pragma region getters
 	[[nodiscard]] inline auto cellW() const noexcept
@@ -178,12 +209,12 @@ private:
 	cv::cuda::GpuMat m_colormap;
 	const std::string m_chars;
 
-	const int m_nchars = m_chars.length();
-	const int m_ncolors = m_colormap.cols;
+	int m_nchars;
+	int m_ncolors;
 
-	const int m_cellw = m_charmap.size().width / m_nchars;
-	const int m_cellh = m_charmap.size().height / (m_ncolors * m_ncolors);
-	const int m_ncells = m_nchars * m_ncolors * m_ncolors;
+	int m_cellw;
+	int m_cellh;
+	int m_ncells;
 #pragma endregion members
 };
 
