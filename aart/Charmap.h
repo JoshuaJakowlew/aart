@@ -1,15 +1,25 @@
 #ifndef CHARMAP_H
 #define CHARMAP_H
 
-#include "Colors.h"
+#include "colors.h"
+#include "launch_type.h"
+
+template <typename T, launch_t>
+class charmap_t {};
 
 template <typename T>
-class Charmap
+class charmap_t<T, launch_t::cpu>
 {
 public:
-	Charmap(cv::Mat charmap, cv::Mat colormap, std::string chars) :
+	charmap_t(cv::Mat charmap, cv::Mat colormap, std::string chars) :
 		m_charmap{ std::move(charmap) },
-		m_colormap{ convertTo<T>(std::move(colormap)) },
+		m_colormap{ convert_to<T>(std::move(colormap)) },
+		m_chars{ std::move(chars) }
+	{}
+
+	charmap_t(const std::string& charmap, const std::string& colormap, const std::string chars) :
+		m_charmap{ cv::imread(charmap, cv::IMREAD_COLOR) },
+		m_colormap{ convert_to<T>(cv::imread(colormap, cv::IMREAD_COLOR)) },
 		m_chars{ std::move(chars) }
 	{}
 
@@ -58,14 +68,14 @@ private:
 
 template <typename T>
 template <typename F>
-[[nodiscard]] auto Charmap<T>::getCell(const T& color, F distance) const noexcept -> cv::Mat
+[[nodiscard]] auto charmap_t<T, launch_t::cpu>::getCell(const T& color, F distance) const noexcept -> cv::Mat
 {
 	const auto colors = similar2(color, distance);
 
 	// Calculate character index
 	const int char_pos = colors.fg_delta == 0 ?
 		m_nchars - 1 :
-		colors.bg_delta / colors.fg_delta * (m_nchars - 1);
+		colors.bg_delta * (m_nchars - 1) / colors.fg_delta;
 
 	// Calculate cell position in charmap
 	const auto cell_x = char_pos * m_cellw;
@@ -76,7 +86,7 @@ template <typename F>
 
 template <typename T>
 template <typename D>
-[[nodiscard]] auto Charmap<T>::similar2(const T& goal, D(*distance)(const T&, const T&)) const noexcept -> SimilarColors<D>
+[[nodiscard]] auto charmap_t<T, launch_t::cpu>::similar2(const T& goal, D(*distance)(const T&, const T&)) const noexcept -> SimilarColors<D>
 {
 	const auto start_color = m_colormap.begin<T>();
 	auto delta1 = distance(goal, *start_color);
@@ -111,78 +121,101 @@ template <typename D>
 	};
 }
 
-namespace cuda {
-	template <typename T>
-	class Charmap
+template <typename T>
+class charmap_t<T, launch_t::cuda>
+{
+public:
+	charmap_t(cv::cuda::GpuMat charmap, cv::cuda::GpuMat colormap, std::string chars) :
+		m_charmap{ std::move(charmap) },
+		m_colormap{ convert_to<T>(std::move(colormap)) },
+		m_chars{ std::move(chars) },
+		m_nchars{ m_chars.length() },
+		m_ncolors{ m_colormap.cols },
+		m_cellw{ m_charmap.size().width / m_nchars },
+		m_cellh{ m_charmap.size().height / (m_ncolors * m_ncolors) },
+		m_ncells{ m_nchars * m_ncolors * m_ncolors }
+	{}
+
+	charmap_t(const std::string& charmap, const std::string& colormap, const std::string chars) :
+		m_chars{ std::move(chars) }
 	{
-	public:
-		Charmap(cv::cuda::GpuMat charmap, cv::cuda::GpuMat colormap, std::string chars) :
-			m_charmap{ std::move(charmap) },
-			m_colormap{ convertTo<T>(std::move(colormap)) },
-			m_chars{ std::move(chars) }
-		{}
+		const auto cpu_charmap = cv::imread(charmap, cv::IMREAD_COLOR);
+		const auto cpu_colormap = cv::imread(colormap, cv::IMREAD_COLOR);
+
+		m_charmap.upload(cpu_charmap);
+
+		cv::cuda::GpuMat gpu_colormap;
+		gpu_colormap.upload(cpu_colormap);
+		m_colormap = convert_to<T>(gpu_colormap);
+
+		m_nchars = m_chars.length();
+		m_ncolors = m_colormap.cols;
+
+		m_cellw = m_charmap.size().width / m_nchars;
+		m_cellh = m_charmap.size().height / (m_ncolors * m_ncolors);
+		m_ncells = m_nchars * m_ncolors * m_ncolors;
+	}
 
 #pragma region getters
-		[[nodiscard]] inline auto cellW() const noexcept
-		{
-			return m_cellw;
-		}
+	[[nodiscard]] inline auto cellW() const noexcept
+	{
+		return m_cellw;
+	}
 
-		[[nodiscard]] inline auto cellH() const noexcept
-		{
-			return m_cellh;
-		}
+	[[nodiscard]] inline auto cellH() const noexcept
+	{
+		return m_cellh;
+	}
 
-		[[nodiscard]] inline auto size() const noexcept
-		{
-			return m_ncells;
-		}
+	[[nodiscard]] inline auto size() const noexcept
+	{
+		return m_ncells;
+	}
 
-		[[nodiscard]] inline auto type() const noexcept
-		{
-			return m_charmap.type();
-		}
+	[[nodiscard]] inline auto type() const noexcept
+	{
+		return m_charmap.type();
+	}
 
-		[[nodiscard]] inline auto charmap() const noexcept -> const cv::cuda::GpuMat&
-		{
-			return m_charmap;
-		}
+	[[nodiscard]] inline auto charmap() const noexcept -> const cv::cuda::GpuMat&
+	{
+		return m_charmap;
+	}
 
-		[[nodiscard]] inline auto colormap() const noexcept -> const cv::cuda::GpuMat&
-		{
-			return m_colormap;
-		}
+	[[nodiscard]] inline auto colormap() const noexcept -> const cv::cuda::GpuMat&
+	{
+		return m_colormap;
+	}
 
-		[[nodiscard]] inline auto chars() const noexcept
-		{
-			return m_chars;
-		}
+	[[nodiscard]] inline auto chars() const noexcept
+	{
+		return m_chars;
+	}
 
-		[[nodiscard]] inline auto nchars() const noexcept
-		{
-			return m_nchars;
-		}
+	[[nodiscard]] inline auto nchars() const noexcept
+	{
+		return m_nchars;
+	}
 
-		[[nodiscard]] inline auto ncolors() const noexcept
-		{
-			return m_ncolors;
-		}
+	[[nodiscard]] inline auto ncolors() const noexcept
+	{
+		return m_ncolors;
+	}
 #pragma endregion getters
 
-	private:
+private:
 #pragma region members
-		cv::cuda::GpuMat m_charmap;
-		cv::cuda::GpuMat m_colormap;
-		const std::string m_chars;
+	cv::cuda::GpuMat m_charmap;
+	cv::cuda::GpuMat m_colormap;
+	const std::string m_chars;
 
-		const int m_nchars = m_chars.length();
-		const int m_ncolors = m_colormap.cols;
+	int m_nchars;
+	int m_ncolors;
 
-		const int m_cellw = m_charmap.size().width / m_nchars;
-		const int m_cellh = m_charmap.size().height / (m_ncolors * m_ncolors);
-		const int m_ncells = m_nchars * m_ncolors * m_ncolors;
+	int m_cellw;
+	int m_cellh;
+	int m_ncells;
 #pragma endregion members
-	};
-}
+};
 
 #endif

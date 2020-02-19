@@ -102,26 +102,23 @@ namespace cv {
 }
 
 template <typename T>
-[[noreturn]] auto inline convertTo(const cv::Mat& img) noexcept -> cv::Mat
-{
-	//static_assert(false, "Unsupported color type");
-	std::cout << "Shit happens\n";
-}
+[[noreturn]] auto inline convert_to(const cv::Mat& img) noexcept -> cv::Mat
+{}
 
 template <>
-[[nodiscard]] auto inline convertTo<rgb_t<uint8_t>>(const cv::Mat& img) noexcept -> cv::Mat
+[[nodiscard]] auto inline convert_to<rgb_t<uint8_t>>(const cv::Mat& img) noexcept -> cv::Mat
 {
 	return img;
 }
 
 template <>
-[[nodiscard]] auto inline convertTo<rgb_t<int32_t>>(const cv::Mat& img) noexcept -> cv::Mat
+[[nodiscard]] auto inline convert_to<rgb_t<int32_t>>(const cv::Mat& img) noexcept -> cv::Mat
 {
 	return img;
 }
 
 template <>
-[[nodiscard]] auto inline convertTo<rgb_t<float>>(const cv::Mat& img) noexcept -> cv::Mat
+[[nodiscard]] auto inline convert_to<rgb_t<float>>(const cv::Mat& img) noexcept -> cv::Mat
 {
 	cv::Mat result;
 	img.convertTo(result, CV_32FC3);
@@ -130,7 +127,7 @@ template <>
 }
 
 template <>
-[[nodiscard]] auto inline convertTo<rgb_t<double>>(const cv::Mat& img) noexcept -> cv::Mat
+[[nodiscard]] auto inline convert_to<rgb_t<double>>(const cv::Mat& img) noexcept -> cv::Mat
 {
 	cv::Mat result;
 	img.convertTo(result, CV_64FC3);
@@ -139,7 +136,7 @@ template <>
 }
 
 template <>
-[[nodiscard]] auto inline convertTo<lab_t<float>>(const cv::Mat& img) noexcept -> cv::Mat
+[[nodiscard]] auto inline convert_to<lab_t<float>>(const cv::Mat& img) noexcept -> cv::Mat
 {
 	cv::Mat result;
 	img.convertTo(result, CV_32FC3);
@@ -149,7 +146,7 @@ template <>
 }
 
 template <>
-[[nodiscard]] auto inline convertTo<lab_t<double>>(const cv::Mat& img) noexcept -> cv::Mat
+[[nodiscard]] auto inline convert_to<lab_t<double>>(const cv::Mat& img) noexcept -> cv::Mat
 {
 	cv::Mat result;
 	img.convertTo(result, CV_64FC3);
@@ -169,23 +166,18 @@ struct SimilarColors
 
 #include "cuda_kernels.h"
 
-namespace cuda {
-	template <typename T>
-	[[noreturn]] auto inline convertTo(const cv::cuda::GpuMat& img) noexcept -> cv::cuda::GpuMat
-	{
-		//static_assert(false, "Unsupported color type");
-		std::cout << "Shit happens\n";
-	}
+template <typename T>
+[[noreturn]] auto inline convert_to(const cv::cuda::GpuMat& img) noexcept -> cv::cuda::GpuMat
+{}
 
-	template <>
-	[[nodiscard]] auto inline convertTo<lab_t<float>>(const cv::cuda::GpuMat& img) noexcept -> cv::cuda::GpuMat
-	{
-		cv::cuda::GpuMat result;
-		img.convertTo(result, CV_32FC3);
-		cuda::divide(result, 255.f); // normalize
-		cv::cuda::cvtColor(std::move(result), result, cv::COLOR_BGR2Lab);
-		return result;
-	}
+template <>
+[[nodiscard]] auto inline convert_to<lab_t<float>>(const cv::cuda::GpuMat& img) noexcept -> cv::cuda::GpuMat
+{
+	cv::cuda::GpuMat result;
+	img.convertTo(result, CV_32FC3);
+	cuda_divide(result, 255.f); // normalize
+	cv::cuda::cvtColor(std::move(result), result, cv::COLOR_BGR2Lab);
+	return result;
 }
 
 #endif
