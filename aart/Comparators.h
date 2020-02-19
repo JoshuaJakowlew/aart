@@ -3,6 +3,12 @@
 
 #include "colors.h"
 
+enum class distancef_t
+{
+	CIE76,
+	CIE94
+};
+
 [[nodiscard]] inline auto CIE76_distance_sqr(const lab_t<float>& x, const lab_t<float>& y) noexcept -> float
 {
 	return powf(x.l - y.l, 2) + powf(x.a - y.a, 2) + powf(x.b - y.b, 2);

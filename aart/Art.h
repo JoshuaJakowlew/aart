@@ -6,7 +6,7 @@
 #include "cuda_kernels.h"
 
 template <typename T>
-[[nodiscard]] auto create_art(cv::Mat& pic, const charmap_t<T, launch_t::cpu>& charmap) -> cv::Mat
+[[nodiscard]] auto create_art(cv::Mat& pic, const charmap_t<T, launch_t::cpu>& charmap, distancef_t distance) -> cv::Mat
 {
 	const auto cellw = charmap.cellW();
 	const auto cellh = charmap.cellH();
@@ -19,14 +19,21 @@ template <typename T>
 
 	auto art = cv::Mat(pich * cellh, picw * cellw, charmap.type());
 
-	pic.forEach<T>([&art, &charmap](auto p, const int* pos) noexcept {
+	const auto distancef = [distance]() {
+		if (distance == distancef_t::CIE76)
+			return CIE76_distance_sqr;
+		if (distance == distancef_t::CIE94)
+			return CIE94_distance_sqr;
+	}();
+
+	pic.forEach<T>([&art, &charmap, distancef](auto p, const int* pos) noexcept {
 		const auto y = pos[0];
 		const auto x = pos[1];
 
 		const auto cellw = charmap.cellW();
 		const auto cellh = charmap.cellH();
 
-		auto cell = charmap.getCell(p, CIE76_distance_sqr);	
+		auto cell = charmap.getCell(p, distancef);	
 		const auto roi = cv::Rect{ x * cellw, y * cellh, cellw, cellh };
 		cell.copyTo(art(roi));
 		});
@@ -35,7 +42,7 @@ template <typename T>
 }
 
 template <typename T>
-auto convert_video(const std::string& infile, const std::string& outfile, const charmap_t<T, launch_t::cpu>& charmap) -> void
+auto convert_video(const std::string& infile, const std::string& outfile, const charmap_t<T, launch_t::cpu>& charmap, distancef_t distance = distancef_t::CIE76) -> void
 {
 	auto cap = cv::VideoCapture(infile, cv::CAP_FFMPEG);
 	const int nframes = cap.get(cv::VideoCaptureProperties::CAP_PROP_FRAME_COUNT);
@@ -43,7 +50,7 @@ auto convert_video(const std::string& infile, const std::string& outfile, const 
 
 	cv::Mat pic;
 	cap >> pic;
-	const auto art = create_art<T>(pic, charmap);
+	const auto art = create_art<T>(pic, charmap, distance);
 
 	const int fourcc = cv::VideoWriter::fourcc('a', 'v', 'c', '1');
 	auto writer = cv::VideoWriter(outfile, cv::CAP_MSMF, fourcc, fps, art.size());
@@ -59,7 +66,7 @@ auto convert_video(const std::string& infile, const std::string& outfile, const 
 		if (pic.empty())
 			break;
 
-		writer << create_art<T>(pic, charmap);
+		writer << create_art<T>(pic, charmap, distance);
 
 		if (++frames_processed % (frame_percent * 5) == 0)
 			std::cout << frames_processed << '/' << nframes << " frames processed\n";
@@ -69,14 +76,14 @@ auto convert_video(const std::string& infile, const std::string& outfile, const 
 }
 
 template <typename T>
-auto convert_image(const std::string& infile, const std::string& outfile, const charmap_t<T, launch_t::cpu>& charmap) -> void
+auto convert_image(const std::string& infile, const std::string& outfile, const charmap_t<T, launch_t::cpu>& charmap, distancef_t distance = distancef_t::CIE76) -> void
 {
 	auto pic = cv::imread(infile);
-	cv::imwrite(outfile, create_art<T>(pic, charmap));
+	cv::imwrite(outfile, create_art<T>(pic, charmap, distance));
 }
 
 template <typename T>
-[[nodiscard]] auto create_art(cv::cuda::GpuMat& pic, const charmap_t<T, launch_t::cuda>& charmap) -> cv::cuda::GpuMat
+[[nodiscard]] auto create_art(cv::cuda::GpuMat& pic, const charmap_t<T, launch_t::cuda>& charmap, distancef_t distance) -> cv::cuda::GpuMat
 {
 	const auto cellw = charmap.cellW();
 	const auto cellh = charmap.cellH();
@@ -89,7 +96,13 @@ template <typename T>
 
 	auto art = cv::cuda::GpuMat(pich * cellh, picw * cellw, charmap.type());
 
-	auto colors = similar2<cuda_distancef_t::CIE76>(pic, charmap.colormap());
+	similarptr_t colors = [distance, &pic, &charmap]() {
+		if (distance == distancef_t::CIE76)
+			return similar2<distancef_t::CIE76>(pic, charmap.colormap());
+		if (distance == distancef_t::CIE94)
+			return similar2<distancef_t::CIE94>(pic, charmap.colormap());
+	}();
+
 	copy_symbols(
 		art, charmap.charmap(), std::move(colors),
 		picw, pich, charmap.cellW(), charmap.cellH(),
@@ -100,13 +113,13 @@ template <typename T>
 }
 
 template <typename T>
-auto convert_image(const std::string& infile, const std::string& outfile, const charmap_t<T, launch_t::cuda>& charmap) -> void
+auto convert_image(const std::string& infile, const std::string& outfile, const charmap_t<T, launch_t::cuda>& charmap, distancef_t distance = distancef_t::CIE76) -> void
 {
 	auto pic = cv::imread(infile);
 
 	cv::cuda::GpuMat gpu_pic;
 	gpu_pic.upload(pic);
-	gpu_pic = create_art<T>(gpu_pic, charmap);
+	gpu_pic = create_art<T>(gpu_pic, charmap, distance);
 	cv::Mat art;
 	gpu_pic.download(art);
 
@@ -114,7 +127,7 @@ auto convert_image(const std::string& infile, const std::string& outfile, const 
 }
 
 template <typename T>
-auto convert_video(const std::string& infile, const std::string& outfile, const charmap_t<T, launch_t::cuda>& charmap) -> void
+auto convert_video(const std::string& infile, const std::string& outfile, const charmap_t<T, launch_t::cuda>& charmap, distancef_t distance = distancef_t::CIE76) -> void
 {
 	auto cap = cv::VideoCapture(infile, cv::CAP_FFMPEG);
 	const int nframes = cap.get(cv::VideoCaptureProperties::CAP_PROP_FRAME_COUNT);
@@ -125,7 +138,7 @@ auto convert_video(const std::string& infile, const std::string& outfile, const 
 
 	cv::cuda::GpuMat gpu_pic;
 	gpu_pic.upload(pic);
-	gpu_pic = create_art<T>(gpu_pic, charmap);
+	gpu_pic = create_art<T>(gpu_pic, charmap, distance);
 	cv::Mat art;
 	gpu_pic.download(art);
 
@@ -144,7 +157,7 @@ auto convert_video(const std::string& infile, const std::string& outfile, const 
 			break;
 
 		gpu_pic.upload(pic);
-		gpu_pic = create_art<T>(gpu_pic, charmap);
+		gpu_pic = create_art<T>(gpu_pic, charmap, distance);
 		gpu_pic.download(art);
 
 		writer << art;
