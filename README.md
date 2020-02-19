@@ -22,8 +22,6 @@ Options:
   --cuda,--no-cuda{false}     Use CUDA GPU acceleration (if possible). Better boost can be seen on videos, [--no-cuda] if not specified
   --cie94,--no-cie94{false}   Use more precise but more expensive algorithm, use default if not specified
 ```
-where `charmap` is path to the main palette, `colormap` is path to the color palette, `input` and `output` are path to the input file and generated ascii-art, .
-
 Aart includes sample palette and mediafiles that were used for testing.
 
 # Recommendations and known problems
