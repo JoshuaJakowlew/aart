@@ -10,10 +10,18 @@ It's simple but beautiful. You can convert even videofiles.
 
 Here is command-line syntax
 ```
-aart --chr charmap --clr colormap -i input -o output [--vid, --img] [--cuda, --no-cuda]
-```
-where `charmap` is path to the main palette, `colormap` is path to the color palette, `input` and `output` are path to the input file and generated ascii-art.
+Usage: Aart [OPTIONS]
 
+Options:
+  -h,--help                   Print this help message and exit
+  --chr,--charmap TEXT:FILE   Path to the character map
+  --clr,--colormap TEXT:FILE  Path to the color map
+  -i,--input TEXT:FILE        Path to the input file
+  -o,--output TEXT            Path to the output file
+  --img{0},--vid{1}           Conversion mode [--img] for images, [--vid] for videos, [--img] if not specified
+  --cuda,--no-cuda{false}     Use CUDA GPU acceleration (if possible). Better boost can be seen on videos, [--no-cuda] if not specified
+  --cie94,--no-cie94{false}   Use more precise but more expensive algorithm, use default if not specified
+```
 Aart includes sample palette and mediafiles that were used for testing.
 
 # Recommendations and known problems
