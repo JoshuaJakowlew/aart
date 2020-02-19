@@ -69,7 +69,7 @@ template <typename F>
 	// Calculate character index
 	const int char_pos = colors.fg_delta == 0 ?
 		m_nchars - 1 :
-		colors.bg_delta / colors.fg_delta * (m_nchars - 1);
+		colors.bg_delta * (m_nchars - 1) / colors.fg_delta;
 
 	// Calculate cell position in charmap
 	const auto cell_x = char_pos * m_cellw;

@@ -139,11 +139,11 @@ int main(int argc, char* argv[])
 	gpu_charmap.upload(cpu_charmap);
 	gpu_colormap.upload(cpu_colormap);
 	
-	const auto charmap = charmap_t<color_t, launch_t::cuda>{
-		gpu_charmap,
-		gpu_colormap,
+	const auto charmap = charmap_t<color_t, launch_t::cpu>{
+		cpu_charmap,
+		cpu_colormap,
 		ascii_grayscale
 	};
 	
-	convert_video<color_t>("test.mp4", "out.mp4", charmap);
+	convert_image<color_t>("test.jpg", "out.png", charmap);
 }

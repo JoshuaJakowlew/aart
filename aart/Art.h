@@ -26,7 +26,7 @@ template <typename T>
 		const auto cellw = charmap.cellW();
 		const auto cellh = charmap.cellH();
 
-		auto cell = charmap.getCell(p, CIE76_distance_sqr);
+		auto cell = charmap.getCell(p, CIE76_distance_sqr);	
 		const auto roi = cv::Rect{ x * cellw, y * cellh, cellw, cellh };
 		cell.copyTo(art(roi));
 		});
