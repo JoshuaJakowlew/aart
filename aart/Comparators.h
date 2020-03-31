@@ -1,6 +1,8 @@
 #ifndef COMPARATORS_H
 #define COMPARATORS_H
 
+#include <cmath>
+
 #include "colors.h"
 
 enum class distancef_t

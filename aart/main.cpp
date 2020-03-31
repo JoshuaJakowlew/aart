@@ -34,8 +34,10 @@ int main(int argc, char* argv[])
 	int conv_mode{ 0 };
 	app.add_flag("--img{0},--vid{1}"s, conv_mode, "Conversion mode [--img] for images, [--vid] for videos, [--img] if not specified"s);
 
+#ifdef AART_CUDA
 	bool use_cuda{ false };
 	app.add_flag("--cuda,!--no-cuda"s, use_cuda, "Use CUDA GPU acceleration (if possible). Better boost can be seen on videos, [--no-cuda] if not specified"s);
+#endif // AART_CUDA
 
 	bool use_cie94{ false };
 	app.add_flag("--cie94,!--no-cie94"s, use_cie94, "Use more precise but more expensive algorithm, use default if not specified"s);
@@ -61,7 +63,9 @@ int main(int argc, char* argv[])
 	try
 	{
 		std::cout << "Conversion mode: " << (conv_mode == 0 ? "image" : "video")
+#ifdef AART_CUDA
 				  << "\nUse CUDA: " << (use_cuda ? "yes" : "no")
+#endif // AART_CUDA
 				  << "\nUse CIE94: " << (use_cie94 ? "yes" : "no")
 				  << '\n';
 
@@ -78,6 +82,7 @@ int main(int argc, char* argv[])
 				return distancef_t::CIE76;
 		}();
 
+#ifdef AART_CUDA
 		if (use_cuda)
 		{
 			const auto charmap = charmap_t<color_t, launch_t::cuda>{
@@ -96,6 +101,7 @@ int main(int argc, char* argv[])
 			}
 		}
 		else
+#endif // AART_CUDA
 		{
 			const auto charmap = charmap_t<color_t, launch_t::cpu>{
 				cpu_charmap,
@@ -133,4 +139,12 @@ int main(int argc, char* argv[])
 		std::cerr << "Unknown error\n";
 		return EXIT_FAILURE;
 	}
+
+	/*const auto charmap = charmap_t<color_t, launch_t::cpu>{
+		"charmap.png",
+		"colormap.png",
+		ascii_grayscale
+	};
+
+	convert_image<color_t>("test.jpg", "out.png", charmap, distancef_t::CIE76);*/
 }

@@ -121,6 +121,7 @@ template <typename D>
 	};
 }
 
+#ifdef AART_CUDA
 template <typename T>
 class charmap_t<T, launch_t::cuda>
 {
@@ -217,5 +218,5 @@ private:
 	int m_ncells;
 #pragma endregion members
 };
-
+#endif // AART_CUDA
 #endif

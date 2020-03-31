@@ -3,7 +3,10 @@
 
 #include "charmap.h"
 #include "comparators.h"
+
+#ifdef AART_CUDA
 #include "cuda_kernels.h"
+#endif // AART_CUDA
 
 template <typename T>
 [[nodiscard]] auto create_art(cv::Mat& pic, const charmap_t<T, launch_t::cpu>& charmap, distancef_t distance) -> cv::Mat
@@ -82,6 +85,7 @@ auto convert_image(const std::string& infile, const std::string& outfile, const 
 	cv::imwrite(outfile, create_art<T>(pic, charmap, distance));
 }
 
+#ifdef AART_CUDA
 template <typename T>
 [[nodiscard]] auto create_art(cv::cuda::GpuMat& pic, const charmap_t<T, launch_t::cuda>& charmap, distancef_t distance) -> cv::cuda::GpuMat
 {
@@ -168,5 +172,5 @@ auto convert_video(const std::string& infile, const std::string& outfile, const 
 
 	std::cout << "All frames processed\n";
 }
-
+#endif // AART_CUDA
 #endif
