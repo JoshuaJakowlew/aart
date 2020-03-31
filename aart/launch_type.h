@@ -9,4 +9,10 @@ enum class launch_t
 #endif // AART_CUDA
 };
 
+enum class mode_t
+{
+	image,
+	ansi
+};
+
 #endif
