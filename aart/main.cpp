@@ -140,11 +140,11 @@ int main(int argc, char* argv[])
 //		return EXIT_FAILURE;
 //	}
 
-	const auto charmap = charmap_t<color_t, launch_t::cuda>{
+	auto charmap = charmap_t<color_t, launch_t::cpu, mode_t::ansi>{
 		"charmap.png",
 		"colormap.png",
 		ascii_grayscale
 	};
 
-	convert_image<color_t>("test.jpg", "out.png", charmap, distancef_t::CIE76);
+	convert_image<color_t>("test.jpg", "out.txt", charmap, distancef_t::CIE76);
 }

@@ -1,6 +1,8 @@
 #ifndef ART_H
 #define ART_H
 
+#include <fstream>
+
 #include "charmap.h"
 #include "comparators.h"
 #include "cuda_kernels.h"
@@ -12,7 +14,7 @@ template <typename T>
 class art_t<T, launch_t::cpu, distancef_t::CIE76, mode_t::image>
 {
 public:
-	using lookup_table = charmap_t<T, launch_t::cpu>;
+	using lookup_table = charmap_t<T, launch_t::cpu, mode_t::image>;
 	art_t(lookup_table charmap) :
 		m_charmap{ std::move(charmap) }
 	{}
@@ -48,7 +50,7 @@ template <typename T>
 class art_t<T, launch_t::cpu, distancef_t::CIE94, mode_t::image>
 {
 public:
-	using lookup_table = charmap_t<T, launch_t::cpu>;
+	using lookup_table = charmap_t<T, launch_t::cpu, mode_t::image>;
 	art_t(lookup_table charmap) :
 		m_charmap{ std::move(charmap) }
 	{}
@@ -84,7 +86,7 @@ template <typename T>
 class art_t<T, launch_t::cuda, distancef_t::CIE76, mode_t::image>
 {
 public:
-	using lookup_table = charmap_t<T, launch_t::cuda>;
+	using lookup_table = charmap_t<T, launch_t::cuda, mode_t::image>;
 	art_t(lookup_table charmap) :
 		m_charmap{ std::move(charmap) }
 	{}
@@ -119,7 +121,7 @@ template <typename T>
 class art_t<T, launch_t::cuda, distancef_t::CIE94, mode_t::image>
 {
 public:
-	using lookup_table = charmap_t<T, launch_t::cuda>;
+	using lookup_table = charmap_t<T, launch_t::cuda, mode_t::image>;
 	art_t(lookup_table charmap) :
 		m_charmap{ std::move(charmap) }
 	{}
@@ -151,7 +153,79 @@ private:
 };
 
 template <typename T>
-auto convert_video(const std::string& infile, const std::string& outfile, const charmap_t<T, launch_t::cpu>& charmap, distancef_t distance = distancef_t::CIE76) -> void
+class art_t<T, launch_t::cpu, distancef_t::CIE76, mode_t::ansi>
+{
+public:
+	using lookup_table = charmap_t<T, launch_t::cpu, mode_t::ansi>;
+	art_t(lookup_table charmap) :
+		m_charmap{ std::move(charmap) }
+	{}
+
+	[[nodiscard]] auto create(cv::Mat& pic) const noexcept -> std::string
+	{
+		cv::resize(pic, pic, {}, 1.0, (double)m_cellw / m_cellh, cv::INTER_LINEAR);
+		pic = convert_to<T>(pic);
+
+		const auto picw = pic.size().width;
+		const auto pich = pic.size().height;
+
+		std::string art;
+		for (int y = 0; y < pich; ++y)
+		{
+			for (int x = 0; x < picw; ++x)
+			{
+				const auto color = pic.at<T>(cv::Point2i{ x, y });
+				art += m_charmap.getCell(color, CIE76_distance_sqr);
+			}
+			art += "\033[0m\n";
+		}
+
+		return art;
+	}
+private:
+	lookup_table m_charmap;
+	const int m_cellw = m_charmap.cellW();
+	const int m_cellh = m_charmap.cellH();
+};
+
+template <typename T>
+class art_t<T, launch_t::cpu, distancef_t::CIE94, mode_t::ansi>
+{
+public:
+	using lookup_table = charmap_t<T, launch_t::cpu, mode_t::ansi>;
+	art_t(lookup_table charmap) :
+		m_charmap{ std::move(charmap) }
+	{}
+
+	[[nodiscard]] auto create(cv::Mat& pic) const noexcept -> std::string
+	{
+		cv::resize(pic, pic, {}, 1.0, (double)m_cellw / m_cellh, cv::INTER_LINEAR);
+		pic = convert_to<T>(pic);
+
+		const auto picw = pic.size().width;
+		const auto pich = pic.size().height;
+
+		std::string art;
+		for (int y = 0; y < pich; ++y)
+		{
+			for (int x = 0; x < picw; ++x)
+			{
+				const auto color = pic.at<T>(cv::Point2i{ x, y });
+				art += m_charmap.getCell(color, CIE94_distance_sqr);
+			}
+			art += "\033[0m\n";
+		}
+
+		return art;
+	}
+private:
+	lookup_table m_charmap;
+	const int m_cellw = m_charmap.cellW();
+	const int m_cellh = m_charmap.cellH();
+};
+
+template <typename T>
+auto convert_video(const std::string& infile, const std::string& outfile, const charmap_t<T, launch_t::cpu, mode_t::image>& charmap, distancef_t distance = distancef_t::CIE76) -> void
 {
 	auto cap = cv::VideoCapture(infile, cv::CAP_FFMPEG);
 	const int nframes = cap.get(cv::VideoCaptureProperties::CAP_PROP_FRAME_COUNT);
@@ -187,7 +261,7 @@ auto convert_video(const std::string& infile, const std::string& outfile, const 
 }
 
 template <typename T>
-auto convert_image(const std::string& infile, const std::string& outfile, const charmap_t<T, launch_t::cpu>& charmap, distancef_t distance = distancef_t::CIE76) -> void
+auto convert_image(const std::string& infile, const std::string& outfile, const charmap_t<T, launch_t::cpu, mode_t::image>& charmap, distancef_t distance = distancef_t::CIE76) -> void
 {
 	auto pic = cv::imread(infile);
 	cv::imwrite(outfile, art_t<T, launch_t::cpu, distancef_t::CIE76, mode_t::image>{charmap}.create(pic));
@@ -225,7 +299,7 @@ auto convert_image(const std::string& infile, const std::string& outfile, const 
 //}
 
 template <typename T>
-auto convert_image(const std::string& infile, const std::string& outfile, const charmap_t<T, launch_t::cuda>& charmap, distancef_t distance = distancef_t::CIE76) -> void
+auto convert_image(const std::string& infile, const std::string& outfile, const charmap_t<T, launch_t::cuda, mode_t::image>& charmap, distancef_t distance = distancef_t::CIE76) -> void
 {
 	auto pic = cv::imread(infile);
 
@@ -240,7 +314,7 @@ auto convert_image(const std::string& infile, const std::string& outfile, const 
 }
 
 template <typename T>
-auto convert_video(const std::string& infile, const std::string& outfile, const charmap_t<T, launch_t::cuda>& charmap, distancef_t distance = distancef_t::CIE76) -> void
+auto convert_video(const std::string& infile, const std::string& outfile, const charmap_t<T, launch_t::cuda, mode_t::image>& charmap, distancef_t distance = distancef_t::CIE76) -> void
 {
 	auto cap = cv::VideoCapture(infile, cv::CAP_FFMPEG);
 	const int nframes = cap.get(cv::VideoCaptureProperties::CAP_PROP_FRAME_COUNT);
@@ -284,3 +358,12 @@ auto convert_video(const std::string& infile, const std::string& outfile, const 
 }
 #endif // AART_CUDA
 #endif
+
+template <typename T>
+auto convert_image(const std::string& infile, const std::string& outfile, const charmap_t<T, launch_t::cpu, mode_t::ansi>& charmap, distancef_t distance = distancef_t::CIE76) -> void
+{
+	auto pic = cv::imread(infile);
+	std::ofstream fout(outfile);
+	fout << art_t<T, launch_t::cpu, distancef_t::CIE76, mode_t::ansi>{charmap}.create(pic);
+	fout.close();
+}

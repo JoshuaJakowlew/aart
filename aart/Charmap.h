@@ -1,14 +1,16 @@
 #ifndef CHARMAP_H
 #define CHARMAP_H
 
+#include <vector>
+
 #include "colors.h"
 #include "launch_type.h"
 
-template <typename T, launch_t>
+template <typename T, launch_t = launch_t::cpu, mode_t = mode_t::ansi>
 class charmap_t {};
 
 template <typename T>
-class charmap_t<T, launch_t::cpu>
+class charmap_t<T, launch_t::cpu, mode_t::image>
 {
 public:
 	charmap_t(cv::Mat charmap, cv::Mat colormap, std::string chars) :
@@ -68,7 +70,7 @@ private:
 
 template <typename T>
 template <typename F>
-[[nodiscard]] auto charmap_t<T, launch_t::cpu>::getCell(const T& color, F distance) const noexcept -> cv::Mat
+[[nodiscard]] auto charmap_t<T, launch_t::cpu, mode_t::image>::getCell(const T& color, F distance) const noexcept -> cv::Mat
 {
 	const auto colors = similar2(color, distance);
 
@@ -86,7 +88,7 @@ template <typename F>
 
 template <typename T>
 template <typename D>
-[[nodiscard]] auto charmap_t<T, launch_t::cpu>::similar2(const T& goal, D(*distance)(const T&, const T&)) const noexcept -> SimilarColors<D>
+[[nodiscard]] auto charmap_t<T, launch_t::cpu, mode_t::image>::similar2(const T& goal, D(*distance)(const T&, const T&)) const noexcept -> SimilarColors<D>
 {
 	const auto start_color = m_colormap.begin<T>();
 	auto delta1 = distance(goal, *start_color);
@@ -123,7 +125,7 @@ template <typename D>
 
 #ifdef AART_CUDA
 template <typename T>
-class charmap_t<T, launch_t::cuda>
+class charmap_t<T, launch_t::cuda, mode_t::image>
 {
 public:
 	charmap_t(cv::cuda::GpuMat charmap, cv::cuda::GpuMat colormap, std::string chars) :
@@ -220,3 +222,134 @@ private:
 };
 #endif // AART_CUDA
 #endif
+
+template <typename T>
+class charmap_t<T, launch_t::cpu, mode_t::ansi>
+{
+public:
+	charmap_t(cv::Mat charmap, cv::Mat colormap, std::string chars) :
+		m_charmap{ std::move(charmap) },
+		m_colormap{ colormap },
+		m_chars{ std::move(chars) }
+	{
+		fillAnsiColors();
+		m_colormap = convert_to<T>(m_colormap);
+	}
+
+	charmap_t(const std::string& charmap, const std::string& colormap, const std::string chars) :
+		m_charmap{ cv::imread(charmap, cv::IMREAD_COLOR) },
+		m_colormap{ cv::imread(colormap, cv::IMREAD_COLOR) },
+		m_chars{ std::move(chars) }
+	{
+		fillAnsiColors();
+		m_colormap = convert_to<T>(m_colormap);
+	}
+
+#pragma region getters
+	[[nodiscard]] inline auto cellW() const noexcept
+	{
+		return m_cellw;
+	}
+
+	[[nodiscard]] inline auto cellH() const noexcept
+	{
+		return m_cellh;
+	}
+
+	[[nodiscard]] inline auto size() const noexcept
+	{
+		return m_ncells;
+	}
+#pragma endregion getters
+
+	template <typename F>
+	[[nodiscard]] auto getCell(const T& color, F distance) const noexcept -> std::string;
+
+private:
+#pragma region members
+	cv::Mat m_charmap;
+	cv::Mat m_colormap;
+	const std::string m_chars;
+
+	std::vector<std::string> m_ansi_colors;
+
+	const int m_nchars = m_chars.length();
+	const int m_ncolors = m_colormap.size().width;
+
+	const int m_cellw = m_charmap.size().width / m_nchars;
+	const int m_cellh = m_charmap.size().height / (m_ncolors * m_ncolors);
+	const int m_ncells = m_nchars * m_ncolors * m_ncolors;
+#pragma endregion members
+	auto fillAnsiColors() -> void
+	{
+		m_ansi_colors.reserve(m_ncells);
+
+		for (auto bg = m_colormap.begin<rgb_t<uint8_t>>(); bg != m_colormap.end<rgb_t<uint8_t>>(); ++bg)
+			for (auto fg = m_colormap.begin<rgb_t<uint8_t>>(); fg != m_colormap.end<rgb_t<uint8_t>>(); ++fg)
+				for (auto c : m_chars)
+				{
+					
+					std::string ansi = "\033[38;2;" + std::to_string((*fg).b) + ';' + std::to_string((*fg).g)
+						+ ';' + std::to_string((*fg).r) + ";48;2;" + std::to_string((*bg).b) + ';' + std::to_string((*bg).g) + ';' + std::to_string((*fg).r) + "m" + c;
+					m_ansi_colors.emplace_back(ansi);
+				}
+	}
+
+	template <typename D>
+	[[nodiscard]] auto similar2(const T& goal, D(*distance)(const T&, const T&)) const noexcept -> SimilarColors<D>;
+};
+
+template <typename T>
+template <typename F>
+[[nodiscard]] auto charmap_t<T, launch_t::cpu, mode_t::ansi>::getCell(const T& color, F distance) const noexcept -> std::string
+{
+	const auto colors = similar2(color, distance);
+
+	// Calculate character index
+	const int char_pos = colors.fg_delta == 0 ?
+		m_nchars - 1 :
+		colors.bg_delta * (m_nchars - 1) / colors.fg_delta;
+
+	// Calculate cell position in charmap
+	const auto cell_x = char_pos;
+	const auto cell_y = (colors.bg_index * m_ncolors + colors.fg_index);
+
+	return m_ansi_colors[cell_y * m_nchars + cell_x];
+}
+
+template <typename T>
+template <typename D>
+[[nodiscard]] auto charmap_t<T, launch_t::cpu, mode_t::ansi>::similar2(const T& goal, D(*distance)(const T&, const T&)) const noexcept -> SimilarColors<D>
+{
+	const auto start_color = m_colormap.begin<T>();
+	auto delta1 = distance(goal, *start_color);
+	auto delta2 = delta1;
+	auto color1 = start_color;
+	auto color2 = color1;
+
+	for (auto color = start_color + 1; color != m_colormap.end<T>(); ++color)
+	{
+		const auto delta = distance(goal, *color);
+
+		if (delta < delta1) {
+			delta2 = delta1;
+			delta1 = delta;
+
+			color2 = color1;
+			color1 = color;
+		}
+		else if (delta < delta2) {
+			delta2 = delta;
+
+			color2 = color;
+		}
+	}
+
+	const int index1 = color1 - start_color;
+	const int index2 = color2 - start_color;
+
+	return {
+		 delta1,  delta2,
+		 index1,  index2
+	};
+}
