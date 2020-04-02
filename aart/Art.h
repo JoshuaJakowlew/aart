@@ -264,7 +264,10 @@ template <typename T>
 auto convert_image(const std::string& infile, const std::string& outfile, const charmap_t<T, launch_t::cpu, mode_t::image>& charmap, distancef_t distance = distancef_t::CIE76) -> void
 {
 	auto pic = cv::imread(infile);
-	cv::imwrite(outfile, art_t<T, launch_t::cpu, distancef_t::CIE76, mode_t::image>{charmap}.create(pic));
+	if(distance == distancef_t::CIE76)
+		cv::imwrite(outfile, art_t<T, launch_t::cpu, distancef_t::CIE76, mode_t::image>{charmap}.create(pic));
+	else
+		cv::imwrite(outfile, art_t<T, launch_t::cpu, distancef_t::CIE94, mode_t::image>{charmap}.create(pic));
 }
 
 #ifdef AART_CUDA

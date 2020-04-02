@@ -2,6 +2,7 @@
 #define CHARMAP_H
 
 #include <vector>
+#include <sstream>
 
 #include "colors.h"
 #include "launch_type.h"
@@ -283,15 +284,21 @@ private:
 	auto fillAnsiColors() -> void
 	{
 		m_ansi_colors.reserve(m_ncells);
+		std::ostringstream buffer;
 
-		for (auto bg = m_colormap.begin<rgb_t<uint8_t>>(); bg != m_colormap.end<rgb_t<uint8_t>>(); ++bg)
-			for (auto fg = m_colormap.begin<rgb_t<uint8_t>>(); fg != m_colormap.end<rgb_t<uint8_t>>(); ++fg)
-				for (auto c : m_chars)
-				{
+		for (auto bg = m_colormap.begin<bgr_t<uint8_t>>(); bg != m_colormap.end<bgr_t<uint8_t>>(); ++bg)
+			for (auto fg = m_colormap.begin<bgr_t<uint8_t>>(); fg != m_colormap.end<bgr_t<uint8_t>>(); ++fg)
+				for (const auto c : m_chars)
+				{	
+					buffer << "\033[38;2;" << (*fg).b
+						   << ';' << (*fg).g
+						   << ';' << (*fg).g
+						   << ";48;2;" << (*bg).b
+						   << ';' << (*bg).g
+						   << ';' << (*fg).r
+						   << 'm' << c;
 					
-					std::string ansi = "\033[38;2;" + std::to_string((*fg).b) + ';' + std::to_string((*fg).g)
-						+ ';' + std::to_string((*fg).r) + ";48;2;" + std::to_string((*bg).b) + ';' + std::to_string((*bg).g) + ';' + std::to_string((*fg).r) + "m" + c;
-					m_ansi_colors.emplace_back(ansi);
+					m_ansi_colors.emplace_back(buffer.str());
 				}
 	}
 

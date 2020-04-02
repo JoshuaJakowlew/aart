@@ -4,6 +4,55 @@
 #include <opencv2/opencv.hpp>
 
 template <typename T>
+struct bgr_t
+{
+	using value_type = T;
+
+	constexpr bgr_t() noexcept = default;
+	constexpr bgr_t(T r, T g, T b) noexcept :
+		b{ b },
+		g{ g },
+		r{ r }
+	{}
+
+	T b{};
+	T g{};
+	T r{};
+};
+
+namespace cv {
+	template<typename T>
+	struct DataType<bgr_t<T>>
+	{
+		using value_type = bgr_t<T>;
+		using work_type = typename DataType<T>::work_type;
+		using channel_type = T;
+
+		enum {
+			generic_type = 0,
+			channels = 3,
+			fmt = traits::SafeFmt<channel_type>::fmt + ((channels - 1) << 8)
+		};
+
+		using vec_type = Vec<channel_type, channels>;
+	};
+
+	namespace traits {
+		template<typename T>
+		struct Depth<bgr_t<T>>
+		{
+			enum { value = Depth<T>::value };
+		};
+
+		template<typename T>
+		struct Type<bgr_t<T>>
+		{
+			enum { value = CV_MAKETYPE(Depth<T>::value, 3) };
+		};
+	}
+}
+
+template <typename T>
 struct rgb_t
 {
 	using value_type = T;

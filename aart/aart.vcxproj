@@ -165,12 +165,14 @@
       <FileType>Document</FileType>
       <CudaRuntime Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Static</CudaRuntime>
     </CudaCompile>
+    <ClCompile Include="color_quantization.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="art.h" />
     <ClInclude Include="charmap.h" />
     <ClInclude Include="colors.h" />
+    <ClInclude Include="color_quantization.h" />
     <ClInclude Include="comparators.h" />
     <ClInclude Include="cuda_kernels.h" />
     <ClInclude Include="launch_type.h" />

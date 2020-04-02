@@ -5,14 +5,49 @@
 #include <CLI11.hpp>
 
 #include "art.h"
+#include "color_quantization.h"
+
+int apply_parser(int argc, char* argv[]);
 
 int main(int argc, char* argv[])
 {
-	using namespace std::literals;
-	using color_t = lab_t<float>;
-	constexpr auto ascii_grayscale = " .:-=+*#%@";
+		using namespace std::literals;
+		using color_t = lab_t<float>;
+		constexpr auto ascii_grayscale = " .:-=+*#%@";
+	
+		auto charmap = charmap_t<color_t, launch_t::cpu, mode_t::image>{
+			"charmap.png",
+			"colormap.png",
+			ascii_grayscale
+		};
+	
+		convert_image<color_t>("test.jpg", "out.png", charmap, distancef_t::CIE94);
 
+		auto img = cv::imread("test.jpg", cv::IMREAD_COLOR);
+		cv::Mat centers = palette(img, 32);
 
+		for (int i = 0; i < centers.rows; ++i)
+		{
+			auto x = centers.at<float>(i, 0);
+			auto y = centers.at<float>(i, 1);
+			auto c = cv::Point2f{ x, y };
+			auto clr = img.at<bgr_t<uint8_t>>(c);
+			std::cout << "(" << (int)clr.r << ", " << (int)clr.g << ", " << (int)clr.b << "),\n";
+		}
+}
+
+int apply_parser(int argc, char* argv[])
+{
+//	using namespace std::literals;
+//	using color_t = lab_t<float>;
+//	constexpr auto ascii_grayscale = " .:-=+*#%@";
+//
+//	auto charmap = charmap_t<color_t, launch_t::cpu, mode_t::image>{
+//		"charmap.png",
+//		"colormap.png",
+//		ascii_grayscale
+//	};
+//
 //#pragma region parser_setup
 //	CLI::App app{
 //		"Convert images and videos to ascii-art!\nhttps://github.com/JoshuaJakowlew/aart"s,
@@ -139,12 +174,6 @@ int main(int argc, char* argv[])
 //		std::cerr << "Unknown error\n";
 //		return EXIT_FAILURE;
 //	}
-
-	auto charmap = charmap_t<color_t, launch_t::cpu, mode_t::ansi>{
-		"charmap.png",
-		"colormap.png",
-		ascii_grayscale
-	};
-
-	convert_image<color_t>("test.jpg", "out.txt", charmap, distancef_t::CIE76);
+//
+//	return 0;
 }
