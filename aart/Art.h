@@ -24,6 +24,10 @@ namespace detail {
 	class cpu_art_t : public art_base_t<T, cpu_charmap_t<T>>
 	{
 	public:
+		cpu_art_t(cpu_charmap_t<T> charmap) :
+			art_base_t<T, cpu_charmap_t<T>>(std::move(charmap))
+		{}
+
 		[[nodiscard]] auto create(cv::Mat& pic) const noexcept-> cv::Mat
 		{
 			cv::resize(pic, pic, {}, 1.0, (double)this->m_cellw / this->m_cellh, cv::INTER_LINEAR);
@@ -51,9 +55,13 @@ namespace detail {
 	class gpu_art_t : public art_base_t<T, gpu_charmap_t<T>>
 	{
 	public:
+		gpu_art_t(gpu_charmap_t<T> charmap) :
+			art_base_t<T, gpu_charmap_t<T>>(std::move(charmap))
+		{}
+
 		[[nodiscard]] auto create(cv::cuda::GpuMat& pic) const noexcept -> cv::cuda::GpuMat
 		{
-			cv::cuda::resize(pic, this->pic, {}, 1.0, (double)this->m_cellw / this->m_cellh, cv::INTER_LINEAR);
+			cv::cuda::resize(pic, pic, {}, 1.0, (double)this->m_cellw / this->m_cellh, cv::INTER_LINEAR);
 			pic = convert_to<T>(pic);
 
 			const auto picw = pic.size().width;
@@ -74,9 +82,13 @@ namespace detail {
 	};
 
 	template <typename T, distancef_t distancef = distancef_t::CIE94>
-	class ansi_art_t : public art_base_t<T, cpu_charmap_t<T>>
+	class ansi_art_t : public art_base_t<T, ansi_charmap_t<T>>
 	{
 	public:
+		ansi_art_t(ansi_charmap_t<T> charmap) :
+			art_base_t<T, ansi_charmap_t<T>>(std::move(charmap))
+		{}
+
 		[[nodiscard]] auto create(cv::Mat& pic) const noexcept -> std::string
 		{
 			cv::resize(pic, pic, {}, 1.0, (double)this->m_cellw / this->m_cellh, cv::INTER_LINEAR);
@@ -91,7 +103,7 @@ namespace detail {
 				for (int x = 0; x < picw; ++x)
 				{
 					const auto color = pic.at<T>(cv::Point2i{ x, y });
-					art += this->m_charmap.getCell(color, CIE76_distance_sqr);
+					art += this->m_charmap.getCell<distancef>(color);
 				}
 				art += "\033[0m\n";
 			}

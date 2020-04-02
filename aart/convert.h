@@ -29,7 +29,8 @@ auto convert_image(const std::string& infile, const std::string& outfile, const 
 {
 	auto pic = cv::imread(infile);
 	std::ofstream fout(outfile);
-	fout << ansi_art_t<T, distancef>(charmap).create(pic);
+	ansi_art_t<T, distancef> art(charmap);
+	fout << art.create(pic);
 	fout.close();
 }
 
@@ -82,7 +83,7 @@ auto convert_video(const std::string& infile, const std::string& outfile, const 
 	gpu_art_t<T, distancef> art_worker{ charmap };
 	cv::cuda::GpuMat gpu_pic;
 	gpu_pic.upload(pic);
-	gpu_pic = art_worker.create(pic);
+	gpu_pic = art_worker.create(gpu_pic);
 	cv::Mat art;
 	gpu_pic.download(art);
 
@@ -101,7 +102,7 @@ auto convert_video(const std::string& infile, const std::string& outfile, const 
 			break;
 
 		gpu_pic.upload(pic);
-		gpu_pic = art_worker.create(pic);
+		gpu_pic = art_worker.create(gpu_pic);
 		gpu_pic.download(art);
 
 		writer << art;

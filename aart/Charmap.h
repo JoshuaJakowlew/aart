@@ -11,6 +11,8 @@ namespace detail {
 	class charmap_base_t
 	{
 	public:
+		charmap_base_t() = default;
+
 		charmap_base_t(MatType charmap, MatType colormap, std::string chars) :
 			m_charmap{ std::move(charmap) },
 			m_colormap{ convert_to<T>(std::move(colormap)) },
@@ -63,14 +65,14 @@ namespace detail {
 	protected:
 		MatType m_charmap;
 		MatType m_colormap;
-		const std::string m_chars;
+		std::string m_chars;
 
-		const int m_nchars = m_chars.length();
-		const int m_ncolors = m_colormap.size().width;
+		int m_nchars = m_chars.length();
+		int m_ncolors = m_colormap.size().width;
 
-		const int m_cellw = m_charmap.size().width / m_nchars;
-		const int m_cellh = m_charmap.size().height / (m_ncolors * m_ncolors);
-		const int m_ncells = m_nchars * m_ncolors * m_ncolors;
+		int m_cellw = m_charmap.size().width / m_nchars;
+		int m_cellh = m_charmap.size().height / (m_ncolors * m_ncolors);
+		int m_ncells = m_nchars * m_ncolors * m_ncolors;
 	};
 
 	template <typename T>
@@ -184,7 +186,7 @@ namespace detail {
 	};
 
 	template <typename T>
-	class ansi_charmap_t : cpu_charmap_t<T>
+	class ansi_charmap_t : public charmap_base_t<T, cv::Mat>
 	{
 	public:
 		ansi_charmap_t(cv::Mat charmap, cv::Mat colormap, std::string chars)
@@ -197,11 +199,11 @@ namespace detail {
 			this->m_colormap = convert_to<T>(this->m_colormap);
 		}
 
-		ansi_charmap_t(const std::string& charmap, const std::string& colormap, const std::string chars)
+		ansi_charmap_t(const std::string& charmap, const std::string& colormap, const std::string& chars)
 		{
 			this->m_charmap = cv::imread(charmap, cv::IMREAD_COLOR);
 			this->m_colormap = cv::imread(colormap, cv::IMREAD_COLOR);
-			this->m_chars = std::move(chars);
+			this->m_chars = chars;
 
 			fillAnsiColors();
 			this->m_colormap = convert_to<T>(this->m_colormap);
@@ -223,7 +225,7 @@ namespace detail {
 
 			return m_ansi_colors[cell_y * this->m_nchars + cell_x];
 		}
-	private:
+	protected:
 		std::vector<std::string> m_ansi_colors;
 
 		auto fillAnsiColors() -> void
@@ -245,6 +247,51 @@ namespace detail {
 
 						m_ansi_colors.emplace_back(buffer.str());
 					}
+		}
+
+		template <distancef_t distancef>
+		[[nodiscard]] constexpr auto getComparator() const noexcept -> float(*)(const lab_t<float>&, const lab_t<float>&)
+		{
+			if constexpr (distancef == distancef_t::CIE76)
+				return CIE76_distance_sqr;
+			else
+				return CIE94_distance_sqr;
+		}
+
+		template <typename D>
+		[[nodiscard]] auto similar2(const T& goal, D(*distance)(const T&, const T&)) const noexcept -> SimilarColors<D>
+		{
+			const auto start_color = this->m_colormap.begin<T>();
+			auto delta1 = distance(goal, *start_color);
+			auto delta2 = delta1;
+			auto color1 = start_color;
+			auto color2 = color1;
+
+			for (auto color = start_color + 1; color != this->m_colormap.end<T>(); ++color)
+			{
+				const auto delta = distance(goal, *color);
+
+				if (delta < delta1) {
+					delta2 = delta1;
+					delta1 = delta;
+
+					color2 = color1;
+					color1 = color;
+				}
+				else if (delta < delta2) {
+					delta2 = delta;
+
+					color2 = color;
+				}
+			}
+
+			const int index1 = color1 - start_color;
+			const int index2 = color2 - start_color;
+
+			return {
+				 delta1,  delta2,
+				 index1,  index2
+			};
 		}
 	};
 }

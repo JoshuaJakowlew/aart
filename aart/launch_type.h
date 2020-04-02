@@ -12,7 +12,9 @@ enum class launch_t
 enum class mode_t
 {
 	image,
-	ansi
+	video,
+	ansi,
+	palette
 };
 
 #endif
