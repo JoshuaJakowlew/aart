@@ -40,6 +40,12 @@ int main(int argc, char* argv[])
 
 		cv::CommandLineParser parser{ argc, argv, keys };
 
+		if (parser.has("help"))
+		{
+			parser.printMessage();
+			return 0;
+		}
+
 		const auto charmap = parser.get<std::string>("chr");
 		const auto colormap = parser.get<std::string>("clr");
 
@@ -59,11 +65,11 @@ int main(int argc, char* argv[])
 
 		if (mode == mode_t::image)
 			image_mode(charmap, colormap, input, output, use_cuda, use_cie94);
-		if (mode == mode_t::video)
+		else if (mode == mode_t::video)
 			video_mode(charmap, colormap, input, output, use_cuda, use_cie94);
-		if (mode == mode_t::ansi)
+		else if (mode == mode_t::ansi)
 			ansi_mode(charmap, colormap, input, output, use_cie94);
-		else
+		else if (mode == mode_t::palette)
 		{
 			const int colors = parser.get<int>("colors");
 			const quantization_t quantization = [quantization_s = parser.get<std::string>("quantization")]() mutable {
@@ -72,6 +78,7 @@ int main(int argc, char* argv[])
 			}();
 			palette_mode(input, colors, quantization);
 		}
+		else parser.printMessage();
 }
 
 void image_mode(const std::string& charmap, const std::string& colormap, const std::string& input, const std::string& output, bool use_cuda, bool use_cie94)
