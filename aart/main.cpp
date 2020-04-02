@@ -4,8 +4,7 @@
 #include <opencv2/opencv.hpp>
 #include <CLI11.hpp>
 
-#include "art.h"
-#include "color_quantization.h"
+#include "convert.h"
 
 int apply_parser(int argc, char* argv[]);
 
@@ -15,15 +14,15 @@ int main(int argc, char* argv[])
 		using color_t = lab_t<float>;
 		constexpr auto ascii_grayscale = " .:-=+*#%@";
 	
-		auto charmap = charmap_t<color_t, launch_t::cpu, mode_t::image>{
+		auto charmap = cpu_charmap_t<color_t>{
 			"charmap.png",
 			"colormap.png",
 			ascii_grayscale
 		};
 	
-		convert_image<color_t>("test.jpg", "out.png", charmap, distancef_t::CIE94);
+		convert_image("test.jpg", "out.png", charmap);
 
-		auto img = cv::imread("test.jpg", cv::IMREAD_COLOR);
+		/*auto img = cv::imread("test.jpg", cv::IMREAD_COLOR);
 		cv::Mat centers = palette(img, 32);
 
 		for (int i = 0; i < centers.rows; ++i)
@@ -33,7 +32,7 @@ int main(int argc, char* argv[])
 			auto c = cv::Point2f{ x, y };
 			auto clr = img.at<bgr_t<uint8_t>>(c);
 			std::cout << "(" << (int)clr.r << ", " << (int)clr.g << ", " << (int)clr.b << "),\n";
-		}
+		}*/
 }
 
 int apply_parser(int argc, char* argv[])

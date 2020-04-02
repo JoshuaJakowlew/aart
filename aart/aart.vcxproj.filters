@@ -44,6 +44,9 @@
     <ClInclude Include="color_quantization.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="convert.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="cuda_kernels.cu">
