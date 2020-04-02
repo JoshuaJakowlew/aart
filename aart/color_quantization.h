@@ -3,8 +3,8 @@
 
 #include <opencv2/opencv.hpp>
 
-auto palette(cv::InputArray picture, int colors)->cv::Mat;
-auto histogram(cv::InputArray picture, int bins)->std::vector<cv::Mat>;
-auto find_dominant_colors(cv::Mat img, int count) ->std::vector<cv::Vec3b>;
+auto kmean(cv::InputArray picture, int colors) -> cv::Mat;
+auto histogram(cv::InputArray picture, int bins) -> std::vector<cv::Mat>;
+auto dominant_colors(cv::Mat img, int count) -> std::vector<cv::Vec3b>;
 
 #endif // COLOR_QUANTIZATION_H

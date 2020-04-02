@@ -2,7 +2,7 @@
 
 using namespace std;
 
-auto palette(cv::InputArray picture, int colors) -> cv::Mat
+auto kmean(cv::InputArray picture, int colors) -> cv::Mat
 {
     constexpr int attempts = 25;
     constexpr double epsilon = 0.00001;
@@ -230,7 +230,7 @@ t_color_node* get_max_eigenvalue_node(t_color_node* current) {
     return ret;
 }
 
-std::vector<cv::Vec3b> find_dominant_colors(cv::Mat img, int count) {
+std::vector<cv::Vec3b> dominant_colors(cv::Mat img, int count) {
     const int width = img.cols;
     const int height = img.rows;
 
