@@ -1,172 +1,125 @@
 #ifndef ART_H
 #define ART_H
 
+#include <fstream>
+
 #include "charmap.h"
 #include "comparators.h"
 #include "cuda_kernels.h"
 
-template <typename T>
-[[nodiscard]] auto create_art(cv::Mat& pic, const charmap_t<T, launch_t::cpu>& charmap, distancef_t distance) -> cv::Mat
-{
-	const auto cellw = charmap.cellW();
-	const auto cellh = charmap.cellH();
+namespace detail {
+	template <typename T, typename Charmap>
+	class art_base_t {
+	public:
+		art_base_t(Charmap charmap) :
+			m_charmap{ std::move(charmap) }
+		{}
+	protected:
+		Charmap m_charmap;
+		const int m_cellw = m_charmap.cellW();
+		const int m_cellh = m_charmap.cellH();
+	};
 
-	cv::resize(pic, pic, {}, 1.0, (double)cellw / cellh, cv::INTER_LINEAR);
-	pic = convert_to<T>(pic);
-
-	const auto picw = pic.size().width;
-	const auto pich = pic.size().height;
-
-	auto art = cv::Mat(pich * cellh, picw * cellw, charmap.type());
-
-	const auto distancef = [distance]() {
-		if (distance == distancef_t::CIE76)
-			return CIE76_distance_sqr;
-		if (distance == distancef_t::CIE94)
-			return CIE94_distance_sqr;
-	}();
-
-	pic.forEach<T>([&art, &charmap, distancef](auto p, const int* pos) noexcept {
-		const auto y = pos[0];
-		const auto x = pos[1];
-
-		const auto cellw = charmap.cellW();
-		const auto cellh = charmap.cellH();
-
-		auto cell = charmap.getCell(p, distancef);	
-		const auto roi = cv::Rect{ x * cellw, y * cellh, cellw, cellh };
-		cell.copyTo(art(roi));
-		});
-
-	return art;
-}
-
-template <typename T>
-auto convert_video(const std::string& infile, const std::string& outfile, const charmap_t<T, launch_t::cpu>& charmap, distancef_t distance = distancef_t::CIE76) -> void
-{
-	auto cap = cv::VideoCapture(infile, cv::CAP_FFMPEG);
-	const int nframes = cap.get(cv::VideoCaptureProperties::CAP_PROP_FRAME_COUNT);
-	const int fps = cap.get(cv::VideoCaptureProperties::CAP_PROP_FPS);
-
-	cv::Mat pic;
-	cap >> pic;
-	const auto art = create_art<T>(pic, charmap, distance);
-
-	const int fourcc = cv::VideoWriter::fourcc('a', 'v', 'c', '1');
-	auto writer = cv::VideoWriter(outfile, cv::CAP_MSMF, fourcc, fps, art.size());
-
-	writer << art;
-
-	int frames_processed = 1;
-	int frame_percent = nframes / 100;
-
-	while (true)
+	template <typename T, distancef_t distancef = distancef_t::CIE94>
+	class cpu_art_t : public art_base_t<T, cpu_charmap_t<T>>
 	{
-		cap >> pic;
-		if (pic.empty())
-			break;
+	public:
+		cpu_art_t(cpu_charmap_t<T> charmap) :
+			art_base_t<T, cpu_charmap_t<T>>(std::move(charmap))
+		{}
 
-		writer << create_art<T>(pic, charmap, distance);
+		[[nodiscard]] auto create(cv::Mat& pic) const noexcept-> cv::Mat
+		{
+			cv::resize(pic, pic, {}, 1.0, (double)this->m_cellw / this->m_cellh, cv::INTER_LINEAR);
+			pic = convert_to<T>(pic);
 
-		if (++frames_processed % (frame_percent * 5) == 0)
-			std::cout << frames_processed << '/' << nframes << " frames processed\n";
-	}
+			const auto picw = pic.size().width;
+			const auto pich = pic.size().height;
 
-	std::cout << "All frames processed\n";
-}
+			auto art = cv::Mat(pich * this->m_cellh, picw * this->m_cellw, this->m_charmap.type());
 
-template <typename T>
-auto convert_image(const std::string& infile, const std::string& outfile, const charmap_t<T, launch_t::cpu>& charmap, distancef_t distance = distancef_t::CIE76) -> void
-{
-	auto pic = cv::imread(infile);
-	cv::imwrite(outfile, create_art<T>(pic, charmap, distance));
-}
+			pic.forEach<T>([this, &art](auto p, const int* pos) noexcept {
+				const auto y = pos[0];
+				const auto x = pos[1];
 
-template <typename T>
-[[nodiscard]] auto create_art(cv::cuda::GpuMat& pic, const charmap_t<T, launch_t::cuda>& charmap, distancef_t distance) -> cv::cuda::GpuMat
-{
-	const auto cellw = charmap.cellW();
-	const auto cellh = charmap.cellH();
+				auto cell = this->m_charmap.getCell<distancef>(p);
+				const auto roi = cv::Rect{ x * this->m_cellw, y * this->m_cellh, this->m_cellw, this->m_cellh };
+				cell.copyTo(art(roi));
+				});
 
-	cv::cuda::resize(pic, pic, {}, 1.0, (double)cellw / cellh, cv::INTER_LINEAR);
-	pic = convert_to<T>(pic);
+			return art;
+		}
+	};
 
-	const auto picw = pic.size().width;
-	const auto pich = pic.size().height;
-
-	auto art = cv::cuda::GpuMat(pich * cellh, picw * cellw, charmap.type());
-
-	similarptr_t colors = [distance, &pic, &charmap]() {
-		if (distance == distancef_t::CIE76)
-			return similar2<distancef_t::CIE76>(pic, charmap.colormap());
-		if (distance == distancef_t::CIE94)
-			return similar2<distancef_t::CIE94>(pic, charmap.colormap());
-	}();
-
-	copy_symbols(
-		art, charmap.charmap(), std::move(colors),
-		picw, pich, charmap.cellW(), charmap.cellH(),
-		charmap.ncolors(), charmap.nchars()
-	);
-
-	return art;
-}
-
-template <typename T>
-auto convert_image(const std::string& infile, const std::string& outfile, const charmap_t<T, launch_t::cuda>& charmap, distancef_t distance = distancef_t::CIE76) -> void
-{
-	auto pic = cv::imread(infile);
-
-	cv::cuda::GpuMat gpu_pic;
-	gpu_pic.upload(pic);
-	gpu_pic = create_art<T>(gpu_pic, charmap, distance);
-	cv::Mat art;
-	gpu_pic.download(art);
-
-	cv::imwrite(outfile, art);
-}
-
-template <typename T>
-auto convert_video(const std::string& infile, const std::string& outfile, const charmap_t<T, launch_t::cuda>& charmap, distancef_t distance = distancef_t::CIE76) -> void
-{
-	auto cap = cv::VideoCapture(infile, cv::CAP_FFMPEG);
-	const int nframes = cap.get(cv::VideoCaptureProperties::CAP_PROP_FRAME_COUNT);
-	const int fps = cap.get(cv::VideoCaptureProperties::CAP_PROP_FPS);
-
-	cv::Mat pic;
-	cap >> pic;
-
-	cv::cuda::GpuMat gpu_pic;
-	gpu_pic.upload(pic);
-	gpu_pic = create_art<T>(gpu_pic, charmap, distance);
-	cv::Mat art;
-	gpu_pic.download(art);
-
-	const int fourcc = cv::VideoWriter::fourcc('a', 'v', 'c', '1');
-	auto writer = cv::VideoWriter(outfile, cv::CAP_MSMF, fourcc, fps, art.size());
-
-	writer << art;
-
-	int frames_processed = 1;
-	int frame_percent = nframes / 100;
-
-	while (true)
+	template <typename T, distancef_t distancef = distancef_t::CIE94>
+	class gpu_art_t : public art_base_t<T, gpu_charmap_t<T>>
 	{
-		cap >> pic;
-		if (pic.empty())
-			break;
+	public:
+		gpu_art_t(gpu_charmap_t<T> charmap) :
+			art_base_t<T, gpu_charmap_t<T>>(std::move(charmap))
+		{}
 
-		gpu_pic.upload(pic);
-		gpu_pic = create_art<T>(gpu_pic, charmap, distance);
-		gpu_pic.download(art);
+		[[nodiscard]] auto create(cv::cuda::GpuMat& pic) const noexcept -> cv::cuda::GpuMat
+		{
+			cv::cuda::resize(pic, pic, {}, 1.0, (double)this->m_cellw / this->m_cellh, cv::INTER_LINEAR);
+			pic = convert_to<T>(pic);
 
-		writer << art;
+			const auto picw = pic.size().width;
+			const auto pich = pic.size().height;
 
-		if (++frames_processed % (frame_percent * 10) == 0)
-			std::cout << frames_processed << '/' << nframes << " frames processed\n";
-	}
+			auto art = cv::cuda::GpuMat(pich * this->m_cellh, picw * this->m_cellw, this->m_charmap.type());
 
-	std::cout << "All frames processed\n";
+			similarptr_t colors = similar2<distancef>(pic, this->m_charmap.colormap());
+
+			copy_symbols(
+				art, this->m_charmap.charmap(), std::move(colors),
+				picw, pich, this->m_charmap.cellW(), this->m_charmap.cellH(),
+				this->m_charmap.ncolors(), this->m_charmap.nchars()
+				);
+
+			return art;
+		}
+	};
+
+	template <typename T, distancef_t distancef = distancef_t::CIE94>
+	class ansi_art_t : public art_base_t<T, ansi_charmap_t<T>>
+	{
+	public:
+		ansi_art_t(ansi_charmap_t<T> charmap) :
+			art_base_t<T, ansi_charmap_t<T>>(std::move(charmap))
+		{}
+
+		[[nodiscard]] auto create(cv::Mat& pic) const noexcept -> std::string
+		{
+			cv::resize(pic, pic, {}, 1.0, (double)this->m_cellw / this->m_cellh, cv::INTER_LINEAR);
+			pic = convert_to<T>(pic);
+
+			const auto picw = pic.size().width;
+			const auto pich = pic.size().height;
+
+			std::string art;
+			for (int y = 0; y < pich; ++y)
+			{
+				for (int x = 0; x < picw; ++x)
+				{
+					const auto color = pic.at<T>(cv::Point2i{ x, y });
+					art += this->m_charmap.getCell<distancef>(color);
+				}
+				art += "\033[0m\n";
+			}
+
+			return art;
+		}
+	};
 }
+
+template <typename T, distancef_t distancef>
+using cpu_art_t = detail::cpu_art_t<T>;
+
+template <typename T, distancef_t distancef>
+using gpu_art_t = detail::gpu_art_t<T>;
+
+template <typename T, distancef_t distancef>
+using ansi_art_t = detail::ansi_art_t<T>;
 
 #endif

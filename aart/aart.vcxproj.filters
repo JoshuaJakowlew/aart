@@ -18,6 +18,9 @@
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="color_quantization.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="cuda_kernels.h">
@@ -36,6 +39,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="comparators.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="color_quantization.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="convert.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

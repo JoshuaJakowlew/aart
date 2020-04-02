@@ -98,7 +98,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions);AART_CUDA</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(ProjectDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
@@ -136,7 +136,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions);AART_CUDA</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(ProjectDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
@@ -163,14 +163,18 @@
   <ItemGroup>
     <CudaCompile Include="cuda_kernels.cu">
       <FileType>Document</FileType>
+      <CudaRuntime Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Static</CudaRuntime>
     </CudaCompile>
+    <ClCompile Include="color_quantization.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="art.h" />
     <ClInclude Include="charmap.h" />
     <ClInclude Include="colors.h" />
+    <ClInclude Include="color_quantization.h" />
     <ClInclude Include="comparators.h" />
+    <ClInclude Include="convert.h" />
     <ClInclude Include="cuda_kernels.h" />
     <ClInclude Include="launch_type.h" />
   </ItemGroup>
