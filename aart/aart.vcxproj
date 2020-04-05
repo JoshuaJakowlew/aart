@@ -177,6 +177,7 @@
     <ClInclude Include="convert.h" />
     <ClInclude Include="cuda_kernels.h" />
     <ClInclude Include="launch_type.h" />
+    <ClInclude Include="scale.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

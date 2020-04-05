@@ -5,6 +5,7 @@
 #include <CLI11.hpp>
 
 #include "convert.h"
+#include "scale.h"
 #include "color_quantization.h"
 
 using color_t = lab_t<float>;
@@ -22,64 +23,29 @@ enum class quantization_t
 
 void palette_mode(const std::string& input, int colors, quantization_t quantization);
 
+void parse_input(int argc, char* argv[]);
+
 int main(int argc, char* argv[])
 {
 	using namespace std::literals;
 
-	const std::string keys =
-		"{h help usage ? |            | print this message										 }"
-		"{clr colormap   |colormap.png| colormap												 }"
-		"{chr charmap    |charmap.png | charmap													 }"
-		"{i              |            | input file												 }"
-		"{o              |            | output file												 }"
-		"{mode           |image       | render mode [image,video,ansi,palette]					 }"
-		"{use_cuda       |false       | use cuda backend if possible							 }"
-		"{cie94          |true        | use more precise but more expensive algorithm			 }"
-		"{colors         |16          | number of colors in palette mode						 }"
-		"{quantization   |dominant    | color quantization algorithm [kmean,dominant]			 }";
-		
+	// parse_input(argc, argv);
 
-	cv::CommandLineParser parser{ argc, argv, keys };
+	std::chrono::high_resolution_clock clock;
 
-	if (parser.has("help"))
-	{
-		parser.printMessage();
-		return 0;
-	}
+	auto art_charmap = gpu_charmap_t<color_t>{
+			"charmap.png",
+			"colormap.png",
+			ascii_grayscale
+	};
 
-	const auto charmap = parser.get<std::string>("chr");
-	const auto colormap = parser.get<std::string>("clr");
+	auto now = clock.now();
 
-	const auto input = parser.get<std::string>("i");
-	const auto output = parser.get<std::string>("o");
+	convert_video<color_t, distancef_t::CIE94>("test.mp4", "res.mp4", art_charmap);
 
-	const mode_t mode = [mode_s = parser.get<std::string>("mode")]() mutable {
-		if ("image" == mode_s) return mode_t::image;
-		if ("video" == mode_s) return mode_t::video;
-		if ("ansi" == mode_s) return mode_t::ansi;
-		if ("palette" == mode_s) return mode_t::palette;
-		return mode_t::image;
-	}();
-
-	const bool use_cuda = parser.get<bool>("use_cuda");
-	const bool use_cie94 = parser.get<bool>("cie94");
-
-	if (mode == mode_t::image)
-		image_mode(charmap, colormap, input, output, use_cuda, use_cie94);
-	else if (mode == mode_t::video)
-		video_mode(charmap, colormap, input, output, use_cuda, use_cie94);
-	else if (mode == mode_t::ansi)
-		ansi_mode(charmap, colormap, input, output, use_cie94);
-	else if (mode == mode_t::palette)
-	{
-		const int colors = parser.get<int>("colors");
-		const quantization_t quantization = [quantization_s = parser.get<std::string>("quantization")]() mutable {
-			if ("kmean" == quantization_s) return quantization_t::kmean;
-			if ("dominant" == quantization_s) return quantization_t::dominant;
-		}();
-		palette_mode(input, colors, quantization);
-	}
-	else parser.printMessage();
+	auto end = clock.now();
+	auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - now).count();
+	std::cout << elapsed << "ms elapsed\n";
 }
 
 void image_mode(const std::string& charmap, const std::string& colormap, const std::string& input, const std::string& output, bool use_cuda, bool use_cie94)
@@ -179,4 +145,65 @@ void palette_mode(const std::string& input, int colors, quantization_t quantizat
 		for (auto c : palette)
 			std::cout << "(" << (int)c[2] << ", " << (int)c[1] << ", " << (int)c[0] << "),\n";
 	}
+}
+
+void parse_input(int argc, char* argv[])
+{
+	const std::string keys =
+		"{h help usage ? |            | print this message										 }"
+		"{clr colormap   |colormap.png| colormap												 }"
+		"{chr charmap    |charmap.png | charmap													 }"
+		"{i              |            | input file												 }"
+		"{o              |            | output file												 }"
+		"{mode           |image       | render mode [image,video,ansi,palette]					 }"
+		"{use_cuda       |false       | use cuda backend if possible							 }"
+		"{cie94          |true        | use more precise but more expensive algorithm			 }"
+		"{colors         |16          | number of colors in palette mode						 }"
+		"{quantization   |dominant    | color quantization algorithm [kmean,dominant]			 }";
+	//"{scale          |            | scale image before input [const,factor,fit]		         }"
+	//"{scalex         |            | use with scale [const,factor,fit]						 }"
+	//"{scaley         |            | use with scale [const,factor,fit]						 }"
+
+
+	cv::CommandLineParser parser{ argc, argv, keys };
+
+	if (parser.has("help"))
+	{
+		parser.printMessage();
+		return;
+	}
+
+	const auto charmap = parser.get<std::string>("chr");
+	const auto colormap = parser.get<std::string>("clr");
+
+	const auto input = parser.get<std::string>("i");
+	const auto output = parser.get<std::string>("o");
+
+	const mode_t mode = [mode_s = parser.get<std::string>("mode")]() mutable {
+		if ("image" == mode_s) return mode_t::image;
+		if ("video" == mode_s) return mode_t::video;
+		if ("ansi" == mode_s) return mode_t::ansi;
+		if ("palette" == mode_s) return mode_t::palette;
+		return mode_t::image;
+	}();
+
+	const bool use_cuda = parser.get<bool>("use_cuda");
+	const bool use_cie94 = parser.get<bool>("cie94");
+
+	if (mode == mode_t::image)
+		image_mode(charmap, colormap, input, output, use_cuda, use_cie94);
+	else if (mode == mode_t::video)
+		video_mode(charmap, colormap, input, output, use_cuda, use_cie94);
+	else if (mode == mode_t::ansi)
+		ansi_mode(charmap, colormap, input, output, use_cie94);
+	else if (mode == mode_t::palette)
+	{
+		const int colors = parser.get<int>("colors");
+		const quantization_t quantization = [quantization_s = parser.get<std::string>("quantization")]() mutable {
+			if ("kmean" == quantization_s) return quantization_t::kmean;
+			if ("dominant" == quantization_s) return quantization_t::dominant;
+		}();
+		palette_mode(input, colors, quantization);
+	}
+	else parser.printMessage();
 }

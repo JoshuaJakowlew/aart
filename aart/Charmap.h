@@ -150,12 +150,18 @@ namespace detail {
 	{
 	public:
 		gpu_charmap_t(cv::cuda::GpuMat charmap, cv::cuda::GpuMat colormap, std::string chars) :
-			charmap_base_t{ charmap, colormap, chars }
+			charmap_base_t<T, cv::cuda::GpuMat>{ charmap, colormap, chars }
 		{}
 
-		gpu_charmap_t(const std::string& charmap, const std::string& colormap, const std::string chars)
+		gpu_charmap_t(const std::string& charmap, const std::string& colormap, const std::string chars) :
+			gpu_charmap_t(
+				[&charmap] { cv::cuda::GpuMat mat; mat.upload(cv::imread(charmap, cv::IMREAD_COLOR)); return mat; }(),
+				[&colormap] { cv::cuda::GpuMat mat; mat.upload(cv::imread(colormap, cv::IMREAD_COLOR)); return mat; }(),
+				chars
+		)
 		{
-			this->m_chars = std::move(chars);
+			//cv::cuda::GpuMat()
+			/*this->m_chars = std::move(chars);
 
 			const auto cpu_charmap = cv::imread(charmap, cv::IMREAD_COLOR);
 			const auto cpu_colormap = cv::imread(colormap, cv::IMREAD_COLOR);
@@ -171,7 +177,7 @@ namespace detail {
 
 			this->m_cellw = this->m_charmap.size().width / this->m_nchars;
 			this->m_cellh = this->m_charmap.size().height / (this->m_ncolors * this->m_ncolors);
-			this->m_ncells = this->m_nchars * this->m_ncolors * this->m_ncolors;
+			this->m_ncells = this->m_nchars * this->m_ncolors * this->m_ncolors;*/
 		}
 
 		[[nodiscard]] inline auto charmap() const noexcept -> const cv::cuda::GpuMat&
