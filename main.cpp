@@ -25,6 +25,10 @@ int main()
 {
     ImageManager imageManager;
     auto img = imageManager.read("C:/Users/jakow/Documents/Programming/aart/test.png");
-    ScaleFilter{0.5f, 0.5f} | GrayscaleFilter{} | ScaleFilter{2.f, 2.f} | ScaleFilter{2.f, 2.f} |= img;
-    show(img);
+    show(
+        img |= ScaleFilter{0.5f, 0.5f}
+            |  GrayscaleFilter{}
+            |  ScaleFilter{2.f, 2.f}
+            |  ScaleFilter{2.f, 2.f}
+    );
 }
