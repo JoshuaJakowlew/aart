@@ -4,7 +4,7 @@
 #include <aart/IFilter.hpp>
 
 namespace detail {
-    template<typename, typename>
+    template <typename, typename>
     struct PipeNode {};
 
     template<Filter T, Filter U>
@@ -21,7 +21,7 @@ namespace detail {
         }
     };
 
-    template<typename Pipe, Filter T>
+    template <typename Pipe, Filter T>
         requires std::is_convertible_v<typename Pipe::output_t, typename T::resource_t>
     struct PipeNode<Pipe, T> {
         using input_t = typename Pipe::input_t;
@@ -37,28 +37,34 @@ namespace detail {
     };
 } // namespace detail
 
-template<Filter T, Filter U>
+template <Filter T, Filter U>
 auto addToPipe(T&& left, U&& right)
 {
     return detail::PipeNode<T, U>{std::move(left), std::move(right)};
 }
 
-template<typename Pipe, Filter U>
+template <typename Pipe, Filter U>
 auto addToPipe(Pipe&& left, U&& right)
 {
     return detail::PipeNode<Pipe, U>{std::move(left), std::move(right)};
 }
 
-template<Filter T, Filter U>
+template <Filter T, Filter U>
 auto operator | (T&& left, U&& right)
 {
     return addToPipe(std::move(left), std::move(right));
 }
 
-template<typename Pipe, Filter U>
+template <typename Pipe, Filter U>
 auto operator | (Pipe&& left, U&& right)
 {
     return addToPipe(std::move(left), std::move(right));
+}
+
+template <typename Pipe, typename Resource>
+auto operator |= (Pipe&& left, Resource&& right)
+{
+    return left(right);
 }
 
 #endif
