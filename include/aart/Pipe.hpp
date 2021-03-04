@@ -62,9 +62,9 @@ auto operator | (Pipe&& left, U&& right)
 }
 
 template <typename Pipe, typename Resource>
-auto operator |= (Pipe&& left, Resource&& right)
+auto operator |= (Resource&& resource, Pipe&& pipe)
 {
-    return left(right);
+    return pipe(resource);
 }
 
 #endif
