@@ -8,6 +8,14 @@
 class ImageManager final : public IResourceManager<ImageManager, cv::Mat>
 {
 public:
+    ImageManager() = default;
+    ImageManager(ImageManager&&) = default;
+
+    ImageManager(const std::string& filename)
+    {
+        read(filename);
+    }
+
     [[nodiscard]] auto read(const std::string& filename) -> resource_t&
     {
         m_resource = cv::imread(filename);

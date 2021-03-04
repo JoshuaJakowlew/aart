@@ -6,7 +6,8 @@
 
 template <typename T>
 concept ResourceManager = 
-    requires(T&& t, const std::string& filename      ) { { t.read(filename)              }          -> std::convertible_to<typename T::resource_t&>; }
+    requires(T&& t, const std::string& filename      ) { { T{filename}                   };                                                          }
+ && requires(T&& t, const std::string& filename      ) { { t.read(filename)              }          -> std::convertible_to<typename T::resource_t&>; }
  && requires(T&& t, const std::string& filename      ) { { t.write(filename)             }          -> std::convertible_to<bool>;                    }
  && requires(T&& t, typename T::resource_t& resource ) { { t.getResource()               } noexcept -> std::convertible_to<typename T::resource_t&>; }
  && requires(T&& t, typename T::resource_t&& resource) { { t.assign(std::move(resource)) }          -> std::convertible_to<bool>;                    }
@@ -18,6 +19,7 @@ struct IResourceManager
     using resource_t = Resource;
 
     IResourceManager() { static_assert(ResourceManager<T>, "IResourceManager not implemented properly"); };
+    IResourceManager(const std::string& filename);
     IResourceManager(IResourceManager&&) = default;
 };
 
