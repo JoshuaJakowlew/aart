@@ -23,11 +23,12 @@ void show(const cv::Mat& x)
 
 int main()
 {
-    ImageManager imageManager{"C:/Users/jakow/Documents/Programming/aart/test.png"};
+    ImageManager imageManager{"test.png"};
     show(
         imageManager.getResource() |= ScaleFilter{0.5f, 0.5f}
                                    |  GrayscaleFilter{}
                                    |  ScaleFilter{2.f, 2.f}
                                    |  ScaleFilter{2.f, 2.f}
     );
+    imageManager.write("result.png");
 }
