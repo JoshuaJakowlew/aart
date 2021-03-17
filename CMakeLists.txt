@@ -18,7 +18,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20)
 
 # Set OpenCVConfig.cmake Search Directory
-set( OpenCV_DIR "C:/devsoft/vcpkg/installed/x64-windows/share/opencv4" )
+#set( OpenCV_DIR "C:/devsoft/vcpkg/installed/x64-windows/share/opencv4" )
 # set( OpenCV_DIR )
 # if( NOT CMAKE_CL_64 )
 #   set( OpenCV_DIR "C:/vcpkg/installed/x86-windows/share/opencv" )
@@ -39,3 +39,27 @@ if( OpenCV_FOUND )
   # Additional Dependencies
   target_link_libraries( ${PROJECT_NAME} ${OpenCV_LIBS} )
 endif()
+
+find_package(freetype CONFIG REQUIRED)
+if( freetype_FOUND )
+  include_directories( ${freetype_INCLUDE_DIRS} )
+  link_directories( ${freetype_LIB_DIR} )
+  target_link_libraries( ${PROJECT_NAME} freetype)
+endif()
+
+# find_package(Freetype CONFIG) # should find freetype-config.cmake if available
+# find_package(Freetype REQUIRED) # Will not be executed if Freetype_FOUND ist already set
+# # if you do not want two find_package calls consider using CMAKE_FIND_PACKAGE_PREFER_CONFIG
+
+# if(TARGET freetype AND NOT TARGET Freetype::Freetype)
+#      add_library(Freetype::Freetype ALIAS freetype) # target freetype is defined by freetype-targets.cmake
+#      # might need to add freetype to global scope if cmake errors here
+#      # alternativly if the above does not work for you you can use
+#      # add_library(Freetype::Freetype INTERFACE IMPORTED)
+#      # target_link_libraries(Freetype::Freetype INTERFACE freetype)
+#  endif()
+#  if(NOT TARGET Freetype::Freetype)
+#      # insert error here
+#      # or create the target correctly (see cmakes newer FindFreetype.cmake)
+#  endif()
+#  target_link_libraries(mylib PRIVATE Freetype::Freetype)

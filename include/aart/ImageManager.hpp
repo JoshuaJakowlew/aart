@@ -16,13 +16,13 @@ public:
         read(filename);
     }
 
-    [[nodiscard]] auto read(const std::string& filename) -> resource_t&
+    auto read(const std::string& filename) -> resource_t&
     {
         m_resource = cv::imread(filename);
         return m_resource;
     }
 
-    [[nodiscard]] auto write(const std::string& filename) -> bool
+    auto write(const std::string& filename) -> bool
     {
         return cv::imwrite(filename, m_resource);
     }
@@ -32,7 +32,7 @@ public:
         return m_resource;
     }
 
-    [[nodiscard]] auto assign(resource_t&& resource) -> bool
+    auto assign(resource_t&& resource) -> bool
     {
         m_resource = std::move(resource);
         return true;
