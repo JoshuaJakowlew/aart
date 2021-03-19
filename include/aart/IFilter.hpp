@@ -3,13 +3,14 @@
 
 template <typename T>
 concept Filter = 
-    requires(T&& t, typename T::resource_t& resource) { { t.operator ()(resource) } -> std::convertible_to<typename T::resource_t&>; }
+    requires(T&& t, typename T::input_t&& resource) { { t.operator ()(std::move(resource)) } -> std::convertible_to<typename T::output_t>; }
  ;
 
-template <typename T, typename Resource>
+template <typename T, typename InputResource, typename OutputResource>
 struct IFilter
 {
-    using resource_t = Resource;
+    using input_t = InputResource;
+    using output_t = OutputResource;
 
     IFilter() { static_assert(Filter<T>, "IFilter not implemented properly"); };
     IFilter(IFilter&&) = default;

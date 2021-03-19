@@ -44,7 +44,7 @@ public:
         }
     }
 
-    [[nodiscard]] auto render() -> cv::Mat
+    auto render() -> cv::Mat
     {
         auto text = renderString(m_chars);
         text.convertTo(text, CV_32FC1, 1./255.);
@@ -72,6 +72,10 @@ public:
         return m_map({x * m_cellw, y * m_cellh, m_cellw, m_cellh});
     }
 
+    [[nodiscard]] auto charmap() const noexcept -> cv::Mat { return m_map; }
+    [[nodiscard]] auto type() const noexcept -> int { return m_map.type(); }
+    [[nodiscard]] auto chars() const noexcept { return m_chars; }
+    [[nodiscard]] auto colors() const noexcept { return m_colors; }
     [[nodiscard]] auto cellW() const noexcept { return m_cellw; }
     [[nodiscard]] auto cellH() const noexcept { return m_cellh; }
     [[nodiscard]] auto nCells() const noexcept { return m_cellw; }
@@ -135,7 +139,8 @@ private:
 
         auto [max_width, max_height] = getMaxCharBBox(char_palette);
         auto [max_bearing_x, max_bearing_y] = getMaxCharBearing(char_palette);
-        cv::Mat atlas(max_height, max_width * static_cast<int>(char_palette.length()), CV_8U, {0, 0, 0, 0});
+        // BUG: Line height is broken for negative y bearing
+        cv::Mat atlas(std::max(max_height, max_bearing_y), max_width * static_cast<int>(char_palette.length()), CV_8U, {0, 0, 0, 0});
 
         for (int i = 0; i < char_palette.length(); ++i)
         {

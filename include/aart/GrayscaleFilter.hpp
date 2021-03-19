@@ -5,7 +5,7 @@
 
 #include <aart/IFilter.hpp>
 
-class GrayscaleFilter final : public IFilter<GrayscaleFilter, cv::Mat>
+class GrayscaleFilter final : public IFilter<GrayscaleFilter, cv::Mat, cv::Mat>
 {
 public:
     GrayscaleFilter() = default;
@@ -14,10 +14,11 @@ public:
     {}
     GrayscaleFilter(GrayscaleFilter&&) = default;
 
-    [[nodiscard]] auto operator ()(resource_t& frame) const -> resource_t&
+    [[nodiscard]] auto operator ()(input_t&& frame) const -> output_t
     {
-        cv::cvtColor(frame, frame, m_conversionCode);
-        return frame;
+        cv::Mat result;
+        cv::cvtColor(std::forward<input_t>(frame), result, m_conversionCode);
+        return result;
     }
 private:
     cv::ColorConversionCodes m_conversionCode = cv::COLOR_BGR2GRAY;

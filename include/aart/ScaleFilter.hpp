@@ -5,7 +5,7 @@
 
 #include <aart/IFilter.hpp>
 
-class ScaleFilter final : public IFilter<ScaleFilter, cv::Mat>
+class ScaleFilter final : public IFilter<ScaleFilter, cv::Mat, cv::Mat>
 {
 public:
     ScaleFilter(float scaleX, float scaleY) :
@@ -14,10 +14,11 @@ public:
     {}
     ScaleFilter(ScaleFilter&&) = default;
 
-    [[nodiscard]] auto operator ()(resource_t& frame) const -> resource_t&
+    [[nodiscard]] auto operator ()(input_t&& frame) const -> output_t
     {
-        cv::resize(frame, frame, {}, m_scaleX, m_scaleY);
-        return frame;
+        cv::Mat result;
+        cv::resize(std::forward<input_t>(frame), result, {}, m_scaleX, m_scaleY);
+        return result;
     }
 private:
     float m_scaleX = 1.f;

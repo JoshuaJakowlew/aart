@@ -16,6 +16,7 @@
 #include <aart/ImageManager.hpp>
 #include <aart/ScaleFilter.hpp>
 #include <aart/GrayscaleFilter.hpp>
+#include <aart/MonochromeArtFilter.hpp>
 
 void show(const cv::Mat& x)
 {
@@ -27,22 +28,23 @@ void show(const cv::Mat& x)
 
 int main()
 {
-    // ImageManager imageManager{"test.png"};
-    // show(
-    //     imageManager.getResource() |= ScaleFilter{0.5f, 0.5f}
-    //                                |  GrayscaleFilter{}
-    //                                |  ScaleFilter{2.f, 2.f}
-    //                                |  ScaleFilter{2.f, 2.f}
-    // );
-    // imageManager.write("result.png");
+    Charmap chr{
+        "Courier New.ttf",
+        14,
+        " .:-=+*#%@",
+        {{0, 0, 0}, {255, 255, 255}}
+    };
+    show(chr.render());
 
-    Charmap chr{"Courier New.ttf", 72, "j .:-=+*#%@gGj", {{255, 0, 0}, {0, 255, 0}, {0, 0, 255}}};
-    ImageManager chrm;
-    chrm.assign(chr.render());
-    chrm.write("font.png");
-
-    auto text = chrm.getResource();
-    show(text);
-
-    show(chr.cellAt(0, 5));
+    ImageManager imageManager{"test.png"};
+    auto img = imageManager.getResource();
+    
+    auto art = std::move(img) |= ScaleFilter{0.5f, 0.5f}
+                              |  GrayscaleFilter{}
+                              |  MonochromeArtFilter{chr};
+    
+    art.convertTo(art, CV_8U, 255); // Shit
+    imageManager.assign(std::move(art));
+    show(imageManager.getResource());
+    imageManager.write("result.png");
 }
