@@ -3,13 +3,18 @@
 
 #include <opencv2/opencv.hpp>
 
+#include <aart/utility.hpp>
 #include <aart/IFilter.hpp>
 #include <aart/Charmap.hpp>
 
 class MonochromeArtFilter final : public IFilter<MonochromeArtFilter, cv::Mat, cv::Mat>
 {
 public:
-    MonochromeArtFilter(Charmap& charmap) :
+    using scale_t = scale<double>;
+
+    MonochromeArtFilter(Charmap& charmap, scale_t scaleX = scale_t{1.}, scale_t scaleY = scale_t{1.}) :
+        m_scaleX{std::move(scaleX)},
+        m_scaleY{std::move(scaleY)},
         m_charmap{charmap}
     {}
     MonochromeArtFilter(MonochromeArtFilter&&) = default;
@@ -19,7 +24,7 @@ public:
         const auto cell_w = m_charmap.cellW();
         const auto cell_h = m_charmap.cellH();
         const auto horz_scale_ratio = static_cast<double>(cell_w) / cell_h;
-        cv::resize(std::forward<input_t>(frame), frame, {}, 1., horz_scale_ratio, cv::INTER_AREA);
+        cv::resize(std::forward<input_t>(frame), frame, {}, ts::get(m_scaleX), ts::get(m_scaleY) * horz_scale_ratio, cv::INTER_AREA);
 
         auto art_size = frame.size();
         art_size.width *= cell_w;
@@ -44,6 +49,8 @@ public:
     }
 private:
     Charmap& m_charmap;
+    scale_t m_scaleX{1.f};
+    scale_t m_scaleY{1.f};
 };
 
 #endif

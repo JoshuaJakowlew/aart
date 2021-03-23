@@ -17,6 +17,7 @@
 #include <aart/ScaleFilter.hpp>
 #include <aart/GrayscaleFilter.hpp>
 #include <aart/MonochromeArtFilter.hpp>
+#include <aart/utility.hpp>
 
 void show(const cv::Mat& x)
 {
@@ -36,13 +37,16 @@ int main()
     chrm.write("chr.png");
 
     Image img{"test.png"};
-    auto art = std::move(img.get()) |= ScaleFilter{0.5f, 0.5f}
-                                    |  GrayscaleFilter{}
-                                    |  MonochromeArtFilter{chr};
+    auto art = std::move(img.get()) |= GrayscaleFilter{}
+                                    |  MonochromeArtFilter{chr, scale{0.5}, scale{0.5}};
     
     art.convertTo(art, CV_8U, 255); // Shit
     img.assign(std::move(art));
     
     show(img.get());
     img.write("result.png");
+
+
+    scale x{2.f};
+    std::cout << ts::get(x) << std::endl;
 }
