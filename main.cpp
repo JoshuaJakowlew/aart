@@ -35,6 +35,9 @@ int main()
         {{0, 0, 0}, {255, 255, 255}}
     };
     show(chr.render());
+    ImageManager chrm;
+    chrm.assign(chr.render());
+    chrm.write("chr.png");
 
     ImageManager imageManager{"test.png"};
     auto img = imageManager.getResource();

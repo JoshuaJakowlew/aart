@@ -51,19 +51,17 @@ public:
 
         auto bg = renderBackground(text.cols, text.rows, m_colors);
 
-        for (int i = 0; i < m_colors.size() * m_colors.size(); ++i)
+        int ncolors = m_colors.size();
+        for (int i = 0; i < ncolors * ncolors; ++i)
         {
             cv::Rect roi(0, i * text.rows, text.cols, text.rows);
-            auto color = m_colors[i % m_colors.size()];
+            auto color = m_colors[i % ncolors];
             auto bg_line = bg(roi);
 
             blend(text, color.r, color.g, color.b, bg_line);
         }
 
         m_map = bg;
-        m_cellw = text.cols / static_cast<int>(m_chars.length());
-        m_cellh = text.rows;
-        m_ncells = static_cast<int>(m_chars.length() * m_colors.size() * m_colors.size());
         return m_map;
     }
 
@@ -106,6 +104,24 @@ private:
         FT_Library handle;
     };
 
+    struct StringMetrics
+    {
+        int max_width;
+        int max_height;
+        int max_bearing_x;
+        int max_bearing_y;
+        int line_height;
+        int line_width;
+    };
+
+    struct CharMetrics
+    {
+        int width;
+        int height;
+        int bearing_x;
+        int bearing_y;
+    };
+
     static inline FreetypeState m_freetype{};
 
     FT_Face m_face;
@@ -133,27 +149,28 @@ private:
         cv::merge(channels, 3, background);
     }
 
-    [[nodiscard]] auto renderString(std::string_view char_palette) const -> cv::Mat
+    [[nodiscard]] auto renderString(std::string_view char_palette) -> cv::Mat
     {
         FT_GlyphSlot slot = m_face->glyph;
 
-        auto [max_width, max_height] = getMaxCharBBox(char_palette);
-        auto [max_bearing_x, max_bearing_y] = getMaxCharBearing(char_palette);
-        // BUG: Line height is broken for negative y bearing
-        cv::Mat atlas(std::max(max_height, max_bearing_y), max_width * static_cast<int>(char_palette.length()), CV_8U, {0, 0, 0, 0});
+        const auto metrics = getStringMetrics(char_palette);
+        cv::Mat atlas(metrics.line_height, metrics.line_width, CV_8U, {0, 0, 0, 0});
 
-        for (int i = 0; i < char_palette.length(); ++i)
+        for (int i = 0; i < char_palette.size(); ++i)
         {
-            auto error = FT_Load_Char(m_face, char_palette[i], FT_LOAD_RENDER);
-            int bitmap_width = slot->bitmap.width;
-            int bitmap_height = slot->bitmap.rows;
-            int bearing_x = slot->metrics.horiBearingX / 64;
-            int bearing_y = slot->metrics.horiBearingY / 64;
+            const auto [width, height, bearing_x, bearing_y] = getCharMetrics(char_palette[i]);
 
-            cv::Mat cell(bitmap_height, bitmap_width, CV_8U, slot->bitmap.buffer);
-            auto matRoi = atlas({i * max_width + bearing_x, 0 + max_bearing_y - bearing_y, bitmap_width, bitmap_height});
+            const int pos_x = i * metrics.max_width;
+            const int pos_y = metrics.max_bearing_y - bearing_y;
+
+            auto matRoi = atlas({pos_x, pos_y, width, height});
+            cv::Mat cell(height, width, CV_8U, slot->bitmap.buffer);
             cell.copyTo(matRoi);
         }
+
+        m_cellw = metrics.max_width;
+        m_cellh = metrics.line_height;
+        m_ncells = char_palette.size();
 
         cv::extractChannel(atlas, atlas, 0);
         return atlas;
@@ -172,52 +189,63 @@ private:
         return bg;
     }
 
-    [[nodiscard]] auto getCharBBox(char c) const -> std::tuple<int, int>
+    [[nodiscard]] auto getStringMetrics(std::string_view char_palette) const -> StringMetrics
     {
-        FT_GlyphSlot slot = m_face->glyph;
-        auto error = FT_Load_Char(m_face, c, FT_LOAD_RENDER);
-        // TODO: Handle error
-        return std::make_tuple(slot->advance.x / 64, slot->metrics.height / 64);
-    }
-
-    [[nodiscard]] auto getCharBearing(char c) const -> std::tuple<int, int>
-    {
-        FT_GlyphSlot slot = m_face->glyph;
-        auto error = FT_Load_Char(m_face, c, FT_LOAD_RENDER);
-        // TODO: Handle error
-        return std::make_tuple(slot->metrics.horiBearingX / 64, slot->metrics.horiBearingY / 64);
-    }
-
-    [[nodiscard]] auto getMaxCharBBox(std::string_view char_palette) const -> std::tuple<int, int>
-    {
-        FT_GlyphSlot slot = m_face->glyph;
-
         int max_width = 0;
         int max_height = 0;
-        for (auto c : char_palette)
-        {
-            auto [char_width, char_height] = getCharBBox(c);
-            max_width = std::max(max_width, char_width);
-            max_height = std::max(max_height, char_height);
-        }
-
-        return std::make_tuple(max_width, max_height);
-    }
-
-    [[nodiscard]] auto getMaxCharBearing(std::string_view char_palette) const -> std::tuple<int, int>
-    {
-        FT_GlyphSlot slot = m_face->glyph;
-
         int max_bearing_x = 0;
         int max_bearing_y = 0;
+        int max_underline_height = 0;
+        
+        int min_bearing_y = 0; 
+        FT_GlyphSlot slot = m_face->glyph;
         for (auto c : char_palette)
         {
-            auto [char_bearing_x, char_bearing_y] = getCharBearing(c);
-            max_bearing_x = std::max(max_bearing_x, char_bearing_x);
-            max_bearing_y = std::max(max_bearing_y, char_bearing_y);
+            auto error = FT_Load_Char(m_face, c, FT_LOAD_RENDER);
+            // TODO: Handle error
+            
+            const int width = slot->bitmap.width;
+            const int height = slot->bitmap.rows;
+            const int bearing_x = slot->metrics.horiBearingX >> 6; // 26.6 fixed point
+            const int bearing_y = slot->metrics.horiBearingY >> 6; // 26.6 fixed point
+            
+            int underline_height = 0;
+            if (bearing_y < 0)
+                underline_height = height;
+            else if (bearing_y < height)
+                underline_height = height - bearing_y;
+
+            max_width            = std::max(max_width           , width           );
+            max_height           = std::max(max_height          , height          );
+            max_bearing_x        = std::max(max_bearing_x       , bearing_x       );
+            max_bearing_y        = std::max(max_bearing_y       , bearing_y       );
+            max_underline_height = std::max(max_underline_height, underline_height);
+            
+            min_bearing_y        = std::min(min_bearing_y       , bearing_y       );
         }
 
-        return std::make_tuple(max_bearing_x, max_bearing_y);
+        return {
+            .max_width     = max_width,
+            .max_height    = max_height,
+            .max_bearing_x = max_bearing_x,
+            .max_bearing_y = max_bearing_y,
+            .line_height   = max_underline_height + (max_bearing_y - min_bearing_y),
+            .line_width    = max_width * static_cast<int>(char_palette.size())
+        };
+    }
+
+    [[nodiscard]] auto getCharMetrics(char c) const -> CharMetrics
+    {
+        FT_GlyphSlot slot = m_face->glyph;
+        auto error = FT_Load_Char(m_face, c, FT_LOAD_RENDER);
+        // TODO: Handle error
+
+        return {
+            .width     = static_cast<int>(slot->bitmap.width),
+            .height    = static_cast<int>(slot->bitmap.rows),
+            .bearing_x = slot->metrics.horiBearingX >> 6, // 26.6 fixed point
+            .bearing_y = slot->metrics.horiBearingY >> 6  // 26.6 fixed point
+        };
     }
 };
 
