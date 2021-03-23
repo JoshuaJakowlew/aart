@@ -44,8 +44,6 @@ public:
     }
 private:
     Charmap& m_charmap;
-
-
 };
 
 #endif

@@ -3,15 +3,11 @@
 
 #include <string_view>
 #include <memory>
-#include <algorithm>
 
 #include <ft2build.h>
 #include <freetype/freetype.h>
 #include <freetype/ftglyph.h>
-#include <freetype/ftcolor.h>
 #include <opencv2/opencv.hpp>
-
-#include <aart/ImageManager.hpp>
 
 struct rgb
 {

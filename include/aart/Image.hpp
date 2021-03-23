@@ -1,17 +1,21 @@
-#ifndef AART_IMAGE_MANAGER_H
-#define AART_IMAGE_MANAGER_H
+#ifndef AART_IMAGE_H
+#define AART_IMAGE_H
 
 #include <opencv2/opencv.hpp>
 
-#include <aart/IResourceManager.hpp>
+#include <aart/IResource.hpp>
 
-class ImageManager final : public IResourceManager<ImageManager, cv::Mat>
+class Image final : public IResource<Image, cv::Mat>
 {
 public:
-    ImageManager() = default;
-    ImageManager(ImageManager&&) = default;
+    Image() = default;
+    Image(Image&&) = default;
+    
+    Image(resource_t&& resource) :
+        m_resource{std::move(resource)}
+    {}
 
-    ImageManager(const std::string& filename)
+    Image(const std::string& filename)
     {
         read(filename);
     }
@@ -27,7 +31,7 @@ public:
         return cv::imwrite(filename, m_resource);
     }
 
-    [[nodiscard]] auto getResource() noexcept -> resource_t&
+    [[nodiscard]] auto get() noexcept -> resource_t&
     {
         return m_resource;
     }
