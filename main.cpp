@@ -45,8 +45,4 @@ int main()
     
     show(img.get());
     img.write("result.png");
-
-
-    scale x{2.f};
-    std::cout << ts::get(x) << std::endl;
 }

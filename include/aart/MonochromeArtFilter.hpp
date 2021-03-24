@@ -24,7 +24,7 @@ public:
         const auto cell_w = m_charmap.cellW();
         const auto cell_h = m_charmap.cellH();
         const auto horz_scale_ratio = static_cast<double>(cell_w) / cell_h;
-        cv::resize(std::forward<input_t>(frame), frame, {}, ts::get(m_scaleX), ts::get(m_scaleY) * horz_scale_ratio, cv::INTER_AREA);
+        cv::resize(std::forward<input_t>(frame), frame, {}, m_scaleX, m_scaleY * horz_scale_ratio, cv::INTER_AREA);
 
         auto art_size = frame.size();
         art_size.width *= cell_w;
@@ -49,8 +49,8 @@ public:
     }
 private:
     Charmap& m_charmap;
-    scale_t m_scaleX{1.f};
-    scale_t m_scaleY{1.f};
+    scale_t m_scaleX{1.};
+    scale_t m_scaleY{1.};
 };
 
 #endif
