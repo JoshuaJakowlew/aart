@@ -10,7 +10,7 @@
 class MonochromeArtFilter final : public IFilter<MonochromeArtFilter, cv::Mat, cv::Mat>
 {
 public:
-    using scale_t = scale<double>;
+    using scale_t = Scale<double>;
 
     MonochromeArtFilter(Charmap& charmap, scale_t scaleX = scale_t{1.}, scale_t scaleY = scale_t{1.}) :
         m_scaleX{std::move(scaleX)},

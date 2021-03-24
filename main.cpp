@@ -34,15 +34,15 @@ int main()
     };
     Image chrm{chr.render()};
     show(chrm.get());
-    chrm.write("chr.png");
+    chrm.write(Filename{"chr.png"});
 
-    Image img{"test.png"};
+    Image img{Filename{"test.png"}};
     auto art = std::move(img.get()) |= GrayscaleFilter{}
-                                    |  MonochromeArtFilter{chr, scale{0.5}, scale{0.5}};
+                                    |  MonochromeArtFilter{chr, Scale{0.5}, Scale{0.5}};
     
     art.convertTo(art, CV_8U, 255); // Shit
     img.assign(std::move(art));
     
     show(img.get());
-    img.write("result.png");
+    img.write(Filename{"result.png"});
 }

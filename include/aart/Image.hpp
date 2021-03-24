@@ -8,30 +8,31 @@
 class Image final : public IResource<Image, cv::Mat>
 {
 public:
-    Image() = default;
-    Image(Image&&) = default;
-    
     Image(resource_t&& resource) :
         m_resource{std::move(resource)}
     {}
 
-    Image(const std::string& filename)
+    Image(Filename const& filename)
     {
         read(filename);
     }
 
-    auto read(const std::string& filename) -> resource_t&
+    auto read(Filename const& filename) -> resource_t&
     {
         m_resource = cv::imread(filename);
         return m_resource;
     }
 
-    auto write(const std::string& filename) -> bool
+    auto write(Filename const& filename) const -> bool
     {
         return cv::imwrite(filename, m_resource);
     }
 
-    [[nodiscard]] auto get() noexcept -> resource_t&
+    [[nodiscard]] auto get() -> resource_t&
+    {
+        return m_resource;
+    }
+    [[nodiscard]] auto get() const -> const resource_t&
     {
         return m_resource;
     }

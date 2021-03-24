@@ -3,10 +3,11 @@
 
 #include <concepts>
 
-#include <type_safe/strong_typedef.hpp>
 #include <NamedType/named_type.hpp>
 
+using Filename = fluent::NamedType<std::string, struct FilenameTag, fluent::Callable, fluent::Printable>;
+
 template <std::floating_point T>
-using scale = fluent::NamedType<T, struct scale_tag, fluent::Callable, fluent::Printable>;
+using Scale = fluent::NamedType<T, struct ScaleTag, fluent::Callable, fluent::Printable>;
 
 #endif
