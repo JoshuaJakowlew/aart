@@ -10,7 +10,6 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 
-#include <aart/utils.h>
 #include <aart/Charmap.hpp>
 #include <aart/Pipe.hpp>
 #include <aart/Image.hpp>
@@ -29,20 +28,21 @@ void show(const cv::Mat& x)
 
 int main()
 {
-    Charmap chr{
-        "Courier New.ttf", 14, " .:-=+*#%@", {{0, 0, 0}, {255, 255, 255}}
-    };
-    Image chrm{chr.render()};
-    show(chrm.get());
-    chrm.write(Filename{"chr.png"});
+    Charmap chr{ FilenameView{"Courier New.ttf"}
+               , FontSize{14}
+               , CharPalette{" .:-=+*#%@"}
+               , ColorPalette{{{0, 0, 0}, {255, 255, 255}}}
+               };
+    chr.render();
+
+    Image atlas{chr.charmap()};
+    show(atlas.get());
+    atlas.write(Filename{"chr.png"});
 
     Image img{Filename{"test.png"}};
-    auto art = std::move(img.get()) |= GrayscaleFilter{}
-                                    |  MonochromeArtFilter{chr, Scale{0.5}, Scale{0.5}};
-    
-    art.convertTo(art, CV_8U, 255); // Shit
-    img.assign(std::move(art));
-    
-    show(img.get());
-    img.write(Filename{"result.png"});
+    Image art = std::move(img.get()) |= GrayscaleFilter{}
+                                     |  MonochromeArtFilter{chr, Scale{0.5}, Scale{0.5}};
+    art.get().convertTo(art.get(), CV_8U, 255); // Shit, move to filter
+    show(art.get());
+    art.write(Filename{"result.png"});
 }

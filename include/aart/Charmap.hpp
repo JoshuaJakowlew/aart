@@ -9,6 +9,7 @@
 #include <freetype/ftglyph.h>
 #include <opencv2/opencv.hpp>
 
+#include <aart/utility.hpp>
 struct rgb
 {
     unsigned char r = 0;
@@ -16,14 +17,18 @@ struct rgb
     unsigned char b = 0;
 };
 
+using FontSize = fluent::NamedType<unsigned, struct FontSizeTag, fluent::Callable, fluent::Printable>;
+using CharPalette = fluent::NamedType<std::string, struct CharPaletteTag, fluent::Callable, fluent::Printable>;
+using ColorPalette = fluent::NamedType<std::vector<rgb>, struct ColorPaletteTag, fluent::Callable, fluent::Printable>;
+
 class Charmap
 {
 public:
-    Charmap(std::string_view filename, int height, const std::string& chars, const std::vector<rgb>& colors) :
+    Charmap(FilenameView filename, FontSize height, CharPalette const& chars, ColorPalette const& colors) :
         m_chars{std::move(chars)},
         m_colors{std::move(colors)}
     {    
-        auto error = FT_New_Face(m_freetype.handle, filename.data(), 0, &m_face);
+        auto error = FT_New_Face(m_freetype.handle, filename->data(), 0, &m_face);
         if (error == FT_Err_Unknown_File_Format)
         {
             throw std::runtime_error{"Unknown file format"};
@@ -40,7 +45,7 @@ public:
         }
     }
 
-    auto render() -> cv::Mat
+    auto render() -> cv::Mat&
     {
         auto text = renderString(m_chars);
         text.convertTo(text, CV_32FC1, 1./255.);
