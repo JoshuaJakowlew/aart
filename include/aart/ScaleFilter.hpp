@@ -4,25 +4,34 @@
 #include <opencv2/opencv.hpp>
 
 #include <aart/IFilter.hpp>
+#include <aart/utility.hpp>
 
 class ScaleFilter final : public IFilter<ScaleFilter, cv::Mat, cv::Mat>
 {
 public:
-    ScaleFilter(float scaleX, float scaleY) :
-        m_scaleX{ scaleX },
-        m_scaleY{ scaleY }
+    ScaleFilter(ScaleX scaleX, ScaleY scaleY) :
+        m_scaleX{scaleX},
+        m_scaleY{scaleY}
     {}
     ScaleFilter(ScaleFilter&&) = default;
 
     [[nodiscard]] auto operator ()(input_t&& frame) const -> output_t
     {
-        cv::Mat result;
-        cv::resize(std::forward<input_t>(frame), result, {}, m_scaleX, m_scaleY);
+        output_t result;
+        const auto interpolation_method = (m_scaleX < 1. && m_scaleY < 1.) ? cv::INTER_AREA : cv::INTER_CUBIC;
+        cv::resize(
+            std::forward<input_t>(frame),
+            result,
+            cv::Size{}, // Empty size means "convert with scale, not exact size"
+            m_scaleX,
+            m_scaleY,
+            interpolation_method
+        );
         return result;
     }
 private:
-    float m_scaleX = 1.f;
-    float m_scaleY = 1.f;
+    ScaleX m_scaleX{1.};
+    ScaleY m_scaleY{1.};
 };
 
 #endif

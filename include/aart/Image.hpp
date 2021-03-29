@@ -14,7 +14,7 @@ public:
 
     Image(Filename const& filename)
     {
-        read(filename);
+        read(std::move(filename));
     }
 
     auto read(Filename const& filename) -> resource_t&

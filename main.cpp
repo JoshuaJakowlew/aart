@@ -35,13 +35,14 @@ int main()
                };
     chr.render();
 
-    Image atlas{chr.charmap()};
+    Image atlas(std::move(chr.charmap().get()));
     show(atlas.get());
     atlas.write(Filename{"chr.png"});
 
     Image img{Filename{"test.png"}};
-    Image art = std::move(img.get()) |= GrayscaleFilter{}
-                                     |  MonochromeArtFilter{chr, Scale{0.5}, Scale{0.5}};
+    Image art = std::move(img.get()) |= ScaleFilter{ScaleX{0.5}, ScaleY{0.5 * chr.ratio()}}
+                                     |  GrayscaleFilter{}
+                                     |  MonochromeArtFilter{chr};
     art.get().convertTo(art.get(), CV_8U, 255); // Shit, move to filter
     show(art.get());
     art.write(Filename{"result.png"});

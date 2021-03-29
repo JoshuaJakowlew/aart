@@ -16,7 +16,7 @@ public:
 
     [[nodiscard]] auto operator ()(input_t&& frame) const -> output_t
     {
-        cv::Mat result;
+        output_t result;
         cv::cvtColor(std::forward<input_t>(frame), result, m_conversionCode);
         return result;
     }
