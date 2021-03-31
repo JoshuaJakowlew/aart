@@ -4,10 +4,14 @@
 #include <opencv2/opencv.hpp>
 
 #include <aart/IResource.hpp>
+#include <aart/utility.hpp>
 
-class Image final : public IResource<Image, cv::Mat>
+template <typename T, int Channels>
+class Image final : public IResource<Image<T, Channels>, Matrix<T, Channels>>
 {
 public:
+    using typename Image<T, Channels>::resource_t;
+
     Image(resource_t&& resource) :
         m_resource{std::move(resource)}
     {}
@@ -19,13 +23,13 @@ public:
 
     auto read(Filename const& filename) -> resource_t&
     {
-        m_resource = cv::imread(filename);
+        m_resource = resource_t{cv::imread(filename)};
         return m_resource;
     }
 
     auto write(Filename const& filename) const -> bool
     {
-        return cv::imwrite(filename, m_resource);
+        return cv::imwrite(filename, m_resource.get());
     }
 
     [[nodiscard]] auto get() -> resource_t&
@@ -45,5 +49,8 @@ public:
 private:
     resource_t m_resource;
 };
+
+template <typename T, int Channels>
+Image(Matrix<T, Channels>&& resource) -> Image<T, Channels>;
 
 #endif

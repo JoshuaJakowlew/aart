@@ -6,9 +6,13 @@
 #include <aart/IFilter.hpp>
 #include <aart/utility.hpp>
 
-class ScaleFilter final : public IFilter<ScaleFilter, cv::Mat, cv::Mat>
+template <typename T, int Channels>
+class ScaleFilter final : public IFilter<ScaleFilter<T, Channels>, Matrix<T, Channels>>
 {
 public:
+    using typename ScaleFilter<T, Channels>::input_t;
+    using typename ScaleFilter<T, Channels>::output_t;
+
     ScaleFilter(ScaleX scaleX, ScaleY scaleY) :
         m_scaleX{scaleX},
         m_scaleY{scaleY}
@@ -20,8 +24,8 @@ public:
         output_t result;
         const auto interpolation_method = (m_scaleX < 1. && m_scaleY < 1.) ? cv::INTER_AREA : cv::INTER_CUBIC;
         cv::resize(
-            std::forward<input_t>(frame),
-            result,
+            frame.get(),
+            result.get(),
             cv::Size{}, // Empty size means "convert with scale, not exact size"
             m_scaleX,
             m_scaleY,

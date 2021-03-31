@@ -28,9 +28,6 @@ using BearingY = fluent::NamedType<int, struct BearingYTag, fluent::Callable, fl
 using VerticalResolution = fluent::NamedType<FT_UInt, struct VerticalResolutionTag, fluent::Callable, fluent::Printable>;
 using HorizontalResolution = fluent::NamedType<FT_UInt, struct HorizontalResolutionTag, fluent::Callable, fluent::Printable>;
 
-using AtlasBackground = fluent::NamedType<cv::Mat, struct AtlasBackgroundTag, fluent::Callable, fluent::Printable>;
-using AtlasForeground = fluent::NamedType<cv::Mat, struct AtlasForegroundTag, fluent::Callable, fluent::Printable>;
-
 class Charmap final
 {
 public:

@@ -2,6 +2,7 @@
 #define AART_PIPE_H
 
 #include <aart/IFilter.hpp>
+#include <aart/Image.hpp>
 
 namespace detail {
     template <typename, typename>
@@ -72,7 +73,19 @@ auto operator | (Pipe&& left, U&& right)
 template <typename Pipe, typename Resource>
 auto operator |= (Resource&& resource, Pipe&& pipe)
 {
+    std::cout << "Resource passed" << std::endl;
     return pipe(std::forward<Resource>(resource));
+}
+
+template <typename Pipe,
+    template <typename, int> typename ImageT,
+    typename T,
+    int Channels>
+requires std::convertible_to<
+        ImageT<T, Channels>, Image<T, Channels>>
+auto operator |= (ImageT<T, Channels>&& resource, Pipe&& pipe)
+{
+    return pipe(std::move(resource.get()));
 }
 
 #endif

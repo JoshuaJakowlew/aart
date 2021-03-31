@@ -7,7 +7,10 @@
 #include <aart/IFilter.hpp>
 #include <aart/Charmap.hpp>
 
-class MonochromeArtFilter final : public IFilter<MonochromeArtFilter, cv::Mat, cv::Mat>
+class MonochromeArtFilter final : public IFilter<
+    MonochromeArtFilter,
+    Matrix<unsigned char, 1>,
+    Matrix<float, 3>>
 {
 public:
     MonochromeArtFilter(Charmap& charmap) :
@@ -17,12 +20,12 @@ public:
 
     [[nodiscard]] auto operator ()(input_t&& frame) const -> output_t
     {
-        const auto art_w = Width{frame.cols * m_charmap.cellW()};
-        const auto art_h = Height{frame.rows * m_charmap.cellH()};
-        output_t art{art_w, art_h, m_charmap.type()};
+        const auto art_w = Width{frame->cols * m_charmap.cellW()};
+        const auto art_h = Height{frame->rows * m_charmap.cellH()};
+        output_t art{{art_w, art_h, m_charmap.type()}};
 
         using pixel_t = unsigned char;
-        frame.forEach<pixel_t>([this, &art](pixel_t& p, const int pos[]){
+        frame->forEach<pixel_t>([this, &art](pixel_t& p, const int pos[]){
             const auto y = PosY{pos[0]};
             const auto x = PosX{pos[1]};
 
@@ -37,8 +40,8 @@ public:
 
             const auto nchars = Length{static_cast<int>(this->m_charmap.chars()->size())};
             const int char_idx = static_cast<int>(std::roundf(p * (nchars - 1) / 255.f));
-            auto cell = Submatrix<float, 3>{this->m_charmap.cellAt(PosX{char_idx}, PosY{1})};
-            cell->copyTo(art(roi));
+            auto cell = output_t{this->m_charmap.cellAt(PosX{char_idx}, PosY{1})};
+            cell->copyTo(art.get()(roi));
         });
 
         return art;
