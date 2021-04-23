@@ -20,7 +20,8 @@ struct rgb
 using FontSize = fluent::NamedType<unsigned, struct FontSizeTag, fluent::Callable, fluent::Printable>;
 using CharPalette = fluent::NamedType<std::string, struct CharPaletteTag, fluent::Callable, fluent::Printable>;
 using CharPaletteView = fluent::NamedType<std::string_view, struct CharPaletteViewTag, fluent::Callable, fluent::Printable>;
-using ColorPalette = fluent::NamedType<std::vector<rgb>, struct ColorPaletteTag, fluent::Callable>;
+using Color = fluent::NamedType<cv::Point3_<unsigned char>, struct ColorTag, fluent::Callable>;
+using ColorPalette = fluent::NamedType<std::vector<cv::Point3_<unsigned char>>, struct ColorPaletteTag, fluent::Callable>;
 
 using BearingX = fluent::NamedType<int, struct BearingXTag, fluent::Callable, fluent::Printable>;
 using BearingY = fluent::NamedType<int, struct BearingYTag, fluent::Callable, fluent::Printable>;
@@ -61,7 +62,7 @@ public:
                 Width{text_w},
                 Height{text_h}
             }};
-            const auto color = m_colors.get()[i % ncolors];
+            const auto color = Color{m_colors.get()[i % ncolors]};
             auto bg_line = Matrix<float, 3>{bg.get()(roi)};
             blend(normalized_text, color, bg_line);
         }
@@ -87,10 +88,10 @@ public:
     [[nodiscard]] auto charmap() const noexcept { return m_map; }
     [[nodiscard]] auto type() const noexcept { return m_map->type(); }
     [[nodiscard]] auto chars() const noexcept { return m_chars; }
-    [[nodiscard]] auto colors() const noexcept { return m_colors; }
+    [[nodiscard]] auto nChars() const noexcept { return Length{static_cast<int>(m_chars->size())}; }
+    [[nodiscard]] auto colors() const noexcept -> ColorPalette const & { return m_colors; }
     [[nodiscard]] auto cellW() const noexcept { return m_cellw; }
     [[nodiscard]] auto cellH() const noexcept { return m_cellh; }
-    [[nodiscard]] auto nCells() const noexcept { return m_cellw; }
 
     ~Charmap()
     {
@@ -147,15 +148,15 @@ private:
     Height m_cellh;
     Length m_ncells;
 
-    auto blend(Matrix<float, 1> & text, rgb blend_color, Matrix<float, 3> & background) const -> void
+    auto blend(Matrix<float, 1> & text, Color const & blend_color, Matrix<float, 3> & background) const -> void
     {       
         cv::Mat channels[3];
         cv::split(background, channels);
 
         float color[] = {
-            blend_color.b / 255.f,
-            blend_color.g / 255.f,
-            blend_color.r / 255.f
+            blend_color->x / 255.f,
+            blend_color->y / 255.f,
+            blend_color->z / 255.f
         };
 
         for (int i = 0; i < 3; ++i)
@@ -219,9 +220,9 @@ private:
                 Height{line_height * ncolors}
             });
             cv::Scalar color{
-                colors.get()[i].b / 255.f,
-                colors.get()[i].g / 255.f,
-                colors.get()[i].r / 255.f
+                colors.get()[i].x / 255.f,
+                colors.get()[i].y / 255.f,
+                colors.get()[i].z / 255.f
             };
             bg.get()(roi) = color;
         }

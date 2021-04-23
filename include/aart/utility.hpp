@@ -96,4 +96,13 @@ template <typename T>
 using Add_ = fluent::NamedType<T, AddTag<T>, fluent::Callable, fluent::Printable>;
 using Add = Add_<double>;
 
+
+template <typename T>
+struct DistanceTag {};
+
+template <typename T>
+using Distance_ = fluent::NamedType<T, DistanceTag<T>, fluent::Callable, fluent::Printable>;
+using Distance = Distance_<double>;
+
+
 #endif
